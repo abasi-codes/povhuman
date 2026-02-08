@@ -32,6 +32,10 @@ export const config = {
     port: parseInt(optional("PORT", "3000"), 10),
     host: optional("HOST", "0.0.0.0"),
     logLevel: optional("LOG_LEVEL", "info"),
+    allowedOrigins: (process.env.ALLOWED_ORIGINS || "")
+      .split(",")
+      .map((s) => s.trim())
+      .filter(Boolean),
   },
 
   database: {

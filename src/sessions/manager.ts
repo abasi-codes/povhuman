@@ -81,6 +81,27 @@ export class SessionManager {
       countRunningJobs: this.db.prepare(`
         SELECT COUNT(*) as count FROM trio_jobs WHERE status = 'running'
       `),
+      getEvents: this.db.prepare(`
+        SELECT event_id, session_id, job_id, type, explanation, metadata, created_at, expires_at
+        FROM perception_events
+        WHERE session_id = ?
+        ORDER BY created_at DESC
+        LIMIT ?
+      `),
+      getEventsFiltered: this.db.prepare(`
+        SELECT event_id, session_id, job_id, type, explanation, metadata, created_at, expires_at
+        FROM perception_events
+        WHERE session_id = ? AND type IN (SELECT value FROM json_each(?))
+        ORDER BY created_at DESC
+        LIMIT ?
+      `),
+      getEventFrame: this.db.prepare(`
+        SELECT frame_b64 FROM perception_events WHERE event_id = ?
+      `),
+      revokeAgentByAgentId: this.db.prepare(`
+        UPDATE agent_bindings SET revoked_at = datetime('now')
+        WHERE session_id = ? AND agent_id = ? AND revoked_at IS NULL
+      `),
     };
   }
 
@@ -304,6 +325,33 @@ export class SessionManager {
 
   markJobStopped(jobId: string, reason: string): void {
     this.stmts.updateJobStatus.run("stopped", reason, jobId);
+  }
+
+  getEvents(sessionId: string, limit: number, types: string[] | null): Omit<import("../db/schema.js").PerceptionEventRow, "frame_b64">[] {
+    if (types && types.length > 0) {
+      return this.stmts.getEventsFiltered.all(sessionId, JSON.stringify(types), limit) as Omit<import("../db/schema.js").PerceptionEventRow, "frame_b64">[];
+    }
+    return this.stmts.getEvents.all(sessionId, limit) as Omit<import("../db/schema.js").PerceptionEventRow, "frame_b64">[];
+  }
+
+  getEventFrame(eventId: string): string | null {
+    const row = this.stmts.getEventFrame.get(eventId) as { frame_b64: string | null } | undefined;
+    return row?.frame_b64 ?? null;
+  }
+
+  bindAgent(sessionId: string, agentId: string, permissions: Record<string, boolean>): string {
+    const bindingId = nanoid(12);
+    this.stmts.insertBinding.run(
+      bindingId,
+      sessionId,
+      agentId,
+      JSON.stringify(permissions),
+    );
+    return bindingId;
+  }
+
+  revokeAgentBinding(sessionId: string, agentId: string): void {
+    this.stmts.revokeAgentByAgentId.run(sessionId, agentId);
   }
 
   private getStreamUrl(sessionId: string): string {

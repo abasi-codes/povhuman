@@ -1,5 +1,9 @@
 import { serve } from "@hono/node-server";
+import { serveStatic } from "@hono/node-server/serve-static";
+import { existsSync } from "node:fs";
+import { join } from "node:path";
 import { Hono } from "hono";
+import { cors } from "hono/cors";
 import { config } from "./config.js";
 import { logger } from "./logger.js";
 import { TrioClient } from "./trio/client.js";
@@ -10,9 +14,15 @@ import { HeartbeatMonitor } from "./sessions/heartbeat.js";
 import { createWebhookReceiver } from "./webhooks/receiver.js";
 import { createSessionRoutes } from "./routes/sessions.js";
 import { createHealthRoutes } from "./routes/health.js";
+import { createEventRoutes } from "./routes/events.js";
+import { createAgentRoutes } from "./routes/agents.js";
 import { OpenClawDelivery } from "./openclaw/delivery.js";
 import { RedactionMiddleware } from "./privacy/redaction.js";
 import { QuotaTracker } from "./youtube/quota.js";
+import { rateLimiter } from "./middleware/rate-limit.js";
+import { securityHeaders } from "./middleware/security-headers.js";
+import { requestLogger } from "./middleware/request-logger.js";
+import { createMetricsRoutes, incrementCounter } from "./routes/metrics.js";
 import type { AnyWebhookPayload, MonitorTriggeredPayload, JobStatusPayload } from "./trio/types.js";
 import { DEFAULT_REDACTION_POLICY } from "./sessions/types.js";
 
@@ -37,6 +47,7 @@ const redaction = new RedactionMiddleware(
 // --- Webhook handler: routes Trio events to sessions and OpenClaw ---
 
 async function handleWebhook(payload: AnyWebhookPayload): Promise<void> {
+  incrementCounter("trio_webhooks_total");
   const sessionId = sessionManager.findJobSession(payload.job_id);
   if (!sessionId) {
     logger.warn({ job_id: payload.job_id }, "Webhook for unknown job");
@@ -84,6 +95,7 @@ async function handleWebhook(payload: AnyWebhookPayload): Promise<void> {
         },
         { processing: "now", include_frame: includeFrame },
       );
+      incrementCounter("events_delivered_total");
       break;
     }
 
@@ -95,6 +107,7 @@ async function handleWebhook(payload: AnyWebhookPayload): Promise<void> {
       if (p.stop_reason === "max_duration_reached") {
         logger.info({ job_id: payload.job_id }, "Job hit 10-min cap, restarting");
         await sessionManager.restartJob(payload.job_id);
+        incrementCounter("job_restarts_total");
       } else if (p.stop_reason === "stream_offline") {
         sessionManager.recordEvent(
           sessionId,
@@ -159,8 +172,39 @@ async function handleJobStopped(jobId: string, reason: string): Promise<void> {
 
 const app = new Hono();
 
+// --- Global middleware ---
+
+// Security headers
+app.use("*", securityHeaders());
+
+// Request logging
+app.use("*", requestLogger());
+
+// CORS
+app.use(
+  "*",
+  cors({
+    origin: config.server.allowedOrigins.length > 0
+      ? config.server.allowedOrigins
+      : (origin) => origin, // same-origin when no explicit origins configured
+    allowMethods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowHeaders: ["Content-Type", "Authorization"],
+    maxAge: 86400,
+  }),
+);
+
+// Rate limiting — general API routes: 60 req/min per IP
+app.use("/sessions/*", rateLimiter(60, 60_000));
+app.use("/webhooks/*", rateLimiter(60, 60_000));
+
+// Tighter rate limit on session creation: 10 req/min per IP
+app.post("/sessions", rateLimiter(10, 60_000));
+
 // Health check
 app.route("/health", createHealthRoutes());
+
+// Prometheus metrics
+app.route("/metrics", createMetricsRoutes());
 
 // Webhook receiver
 app.route(
@@ -178,6 +222,22 @@ app.route(
     config.youtube.apiKey || null,
   ),
 );
+
+// Event feed (nested under /sessions/:id/events)
+const eventRoutes = createEventRoutes(sessionManager);
+app.route("/sessions/:id/events", eventRoutes);
+
+// Agent bindings (nested under /sessions/:id/agents)
+const agentRoutes = createAgentRoutes(sessionManager);
+app.route("/sessions/:id/agents", agentRoutes);
+
+// --- Serve frontend static files (production build) ---
+const frontendDist = join(import.meta.dirname ?? ".", "../frontend/dist");
+if (existsSync(frontendDist)) {
+  app.use("/*", serveStatic({ root: "./frontend/dist" }));
+  // SPA fallback: serve index.html for non-API routes
+  app.get("*", serveStatic({ root: "./frontend/dist", path: "index.html" }));
+}
 
 // --- Start server and background workers ---
 

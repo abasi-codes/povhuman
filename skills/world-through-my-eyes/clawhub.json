@@ -1,0 +1,106 @@
+{
+  "name": "world-through-my-eyes",
+  "version": "0.1.0",
+  "description": "Live first-person perception for OpenClaw agents via YouTube Live + Trio",
+  "author": "openclaw-contrib",
+  "license": "MIT",
+  "homepage": "https://github.com/openclaw-contrib/world-through-my-eyes",
+  "tags": ["perception", "vision", "youtube-live", "trio", "monitoring"],
+  "runtime": {
+    "type": "docker",
+    "image": "world-through-my-eyes:0.1.0",
+    "port": 3000,
+    "healthCheck": "/health"
+  },
+  "env": {
+    "required": [
+      {
+        "name": "GOOGLE_API_KEY",
+        "description": "Google Gemini API key (BYOK — costs billed to your Google account)",
+        "secret": true
+      },
+      {
+        "name": "TRIO_WEBHOOK_SECRET",
+        "description": "Shared secret for verifying Trio webhook payloads",
+        "secret": true
+      }
+    ],
+    "optional": [
+      {
+        "name": "OPENCLAW_BASE_URL",
+        "description": "Base URL for OpenClaw event delivery"
+      },
+      {
+        "name": "OPENCLAW_BEARER_TOKEN",
+        "description": "Bearer token for OpenClaw API",
+        "secret": true
+      },
+      {
+        "name": "YOUTUBE_API_KEY",
+        "description": "YouTube Data API v3 key for live status checks (oEmbed used as fallback)",
+        "secret": true
+      },
+      {
+        "name": "ALLOWED_ORIGINS",
+        "description": "Comma-separated CORS origins"
+      }
+    ]
+  },
+  "hooks": {
+    "wake": {
+      "path": "/hooks/wake",
+      "description": "Receives OpenClaw wake events"
+    },
+    "agent": {
+      "path": "/hooks/agent",
+      "description": "Receives OpenClaw agent session events"
+    }
+  },
+  "mcp": {
+    "tools": [
+      {
+        "name": "start_monitoring",
+        "description": "Start monitoring a YouTube Live stream with specified conditions",
+        "confirmation_required": true
+      },
+      {
+        "name": "stop_monitoring",
+        "description": "Stop an active monitoring session",
+        "confirmation_required": true
+      },
+      {
+        "name": "get_events",
+        "description": "Retrieve perception events from an active session"
+      },
+      {
+        "name": "change_conditions",
+        "description": "Update monitoring conditions for an active session",
+        "confirmation_required": true
+      },
+      {
+        "name": "bind_agent",
+        "description": "Grant an agent access to a monitoring session",
+        "confirmation_required": true
+      },
+      {
+        "name": "revoke_agent",
+        "description": "Revoke an agent's access to a monitoring session",
+        "confirmation_required": true
+      }
+    ]
+  },
+  "permissions": [
+    "network:outbound",
+    "hooks:wake",
+    "hooks:agent"
+  ],
+  "session": {
+    "dmScope": "per-channel-peer"
+  },
+  "volumes": {
+    "data": {
+      "path": "/app/data",
+      "description": "SQLite database storage"
+    }
+  }
+}

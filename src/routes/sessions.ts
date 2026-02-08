@@ -1,4 +1,5 @@
 import { Hono } from "hono";
+import { z } from "zod";
 import type { SessionManager } from "../sessions/manager.js";
 import { validateYouTubeUrl, extractVideoId } from "../youtube/validator.js";
 import { validateCondition } from "../conditions/combiner.js";
@@ -7,6 +8,43 @@ import type { TrioClient } from "../trio/client.js";
 import type { QuotaTracker } from "../youtube/quota.js";
 import { DEFAULT_REDACTION_POLICY } from "../sessions/types.js";
 import type { InputMode } from "../trio/types.js";
+
+// --- Zod schemas ---
+
+const ValidateUrlSchema = z.object({
+  url: z.string().min(1, "url is required").url("url must be a valid URL"),
+});
+
+const PreviewSchema = z.object({
+  url: z.string().min(1, "url is required").url("url must be a valid URL"),
+});
+
+const TestConditionSchema = z.object({
+  url: z.string().min(1).url(),
+  condition: z.string().optional(),
+  preset_id: z.string().optional(),
+  input_mode: z.enum(["frames", "clip", "hybrid"]).optional(),
+});
+
+const CreateSessionSchema = z.object({
+  stream_url: z.string().min(1, "stream_url is required").url("stream_url must be a valid URL"),
+  conditions: z.array(z.string().min(1)).optional(),
+  preset_ids: z.array(z.string().min(1)).optional(),
+  sharing_scope: z.enum(["events_only", "events_and_frames"]).optional(),
+  redaction_policy: z.record(z.string(), z.boolean()).optional(),
+  retention_mode: z.enum(["no_storage", "short_lived", "extended"]).optional(),
+  interval_seconds: z.number().int().min(5).max(300).optional(),
+  input_mode: z.enum(["frames", "clip", "hybrid"]).optional(),
+  enable_prefilter: z.boolean().optional(),
+  agent_ids: z.array(z.string()).optional(),
+});
+
+function zodError(result: z.ZodError) {
+  return {
+    error: result.errors.map((e) => `${e.path.join(".")}: ${e.message}`).join("; "),
+    code: "VALIDATION_ERROR",
+  };
+}
 
 export function createSessionRoutes(
   sessionManager: SessionManager,
@@ -18,8 +56,10 @@ export function createSessionRoutes(
 
   // --- Validate a YouTube URL ---
   app.post("/validate", async (c) => {
-    const { url } = await c.req.json<{ url: string }>();
-    if (!url) return c.json({ error: "url is required" }, 400);
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = ValidateUrlSchema.safeParse(raw);
+    if (!parsed.success) return c.json(zodError(parsed.error), 400);
+    const { url } = parsed.data;
 
     // First: YouTube-side validation
     const ytKey = quotaTracker.canAfford(1) ? youtubeApiKey : null;
@@ -27,7 +67,7 @@ export function createSessionRoutes(
     if (ytKey) quotaTracker.use(1);
 
     if (!ytResult.valid) {
-      return c.json({ valid: false, error: ytResult.error }, 400);
+      return c.json({ valid: false, error: ytResult.error, code: "INVALID_URL" }, 400);
     }
 
     // Second: Trio-side validation
@@ -59,8 +99,10 @@ export function createSessionRoutes(
 
   // --- Preview a stream ---
   app.post("/preview", async (c) => {
-    const { url } = await c.req.json<{ url: string }>();
-    if (!url) return c.json({ error: "url is required" }, 400);
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = PreviewSchema.safeParse(raw);
+    if (!parsed.success) return c.json(zodError(parsed.error), 400);
+    const { url } = parsed.data;
 
     try {
       const result = await trio.prepareStream(url);
@@ -69,7 +111,7 @@ export function createSessionRoutes(
         embed_url: result.embed_url,
         cached: result.cached,
       });
-    } catch (err) {
+    } catch {
       // Fallback: generate embed URL from video ID
       const videoId = extractVideoId(url);
       if (videoId) {
@@ -80,7 +122,7 @@ export function createSessionRoutes(
           fallback: true,
         });
       }
-      return c.json({ error: "Failed to prepare stream preview" }, 500);
+      return c.json({ error: "Failed to prepare stream preview", code: "PREVIEW_FAILED" }, 500);
     }
   });
 
@@ -91,27 +133,25 @@ export function createSessionRoutes(
 
   // --- Test a condition (check_once) ---
   app.post("/test-condition", async (c) => {
-    const { url, condition, preset_id, input_mode } = await c.req.json<{
-      url: string;
-      condition?: string;
-      preset_id?: string;
-      input_mode?: InputMode;
-    }>();
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = TestConditionSchema.safeParse(raw);
+    if (!parsed.success) return c.json(zodError(parsed.error), 400);
+    const { url, condition, preset_id, input_mode } = parsed.data;
 
     let finalCondition: string;
     let finalMode: InputMode = input_mode || "hybrid";
 
     if (preset_id) {
       const preset = getPreset(preset_id);
-      if (!preset) return c.json({ error: "Unknown preset" }, 400);
+      if (!preset) return c.json({ error: "Unknown preset", code: "UNKNOWN_PRESET" }, 400);
       finalCondition = preset.condition;
       finalMode = input_mode || preset.recommended_input_mode;
     } else if (condition) {
       const validationError = validateCondition(condition);
-      if (validationError) return c.json({ error: validationError }, 400);
+      if (validationError) return c.json({ error: validationError, code: "INVALID_CONDITION" }, 400);
       finalCondition = condition;
     } else {
-      return c.json({ error: "condition or preset_id is required" }, 400);
+      return c.json({ error: "condition or preset_id is required", code: "MISSING_CONDITION" }, 400);
     }
 
     const result = await trio.checkOnce({
@@ -129,50 +169,40 @@ export function createSessionRoutes(
 
   // --- Create a session ---
   app.post("/", async (c) => {
-    const body = await c.req.json<{
-      stream_url: string;
-      conditions?: string[];
-      preset_ids?: string[];
-      sharing_scope?: string;
-      redaction_policy?: Record<string, boolean>;
-      retention_mode?: string;
-      interval_seconds?: number;
-      input_mode?: InputMode;
-      enable_prefilter?: boolean;
-      agent_ids?: string[];
-    }>();
-
-    if (!body.stream_url) return c.json({ error: "stream_url is required" }, 400);
+    const raw = await c.req.json().catch(() => ({}));
+    const parsed = CreateSessionSchema.safeParse(raw);
+    if (!parsed.success) return c.json(zodError(parsed.error), 400);
+    const body = parsed.data;
 
     // Resolve conditions from presets or custom
     const conditions: string[] = [];
     if (body.preset_ids) {
       for (const id of body.preset_ids) {
         const preset = getPreset(id);
-        if (!preset) return c.json({ error: `Unknown preset: ${id}` }, 400);
+        if (!preset) return c.json({ error: `Unknown preset: ${id}`, code: "UNKNOWN_PRESET" }, 400);
         conditions.push(preset.condition);
       }
     }
     if (body.conditions) {
       for (const cond of body.conditions) {
         const err = validateCondition(cond);
-        if (err) return c.json({ error: err }, 400);
+        if (err) return c.json({ error: err, code: "INVALID_CONDITION" }, 400);
         conditions.push(cond);
       }
     }
     if (conditions.length === 0) {
-      return c.json({ error: "At least one condition or preset_id is required" }, 400);
+      return c.json({ error: "At least one condition or preset_id is required", code: "NO_CONDITIONS" }, 400);
     }
 
     const sessionId = await sessionManager.createSession({
       stream_url: body.stream_url,
       conditions,
-      sharing_scope: (body.sharing_scope as "events_only") || "events_only",
+      sharing_scope: body.sharing_scope || "events_only",
       redaction_policy: {
         ...DEFAULT_REDACTION_POLICY,
         ...body.redaction_policy,
       },
-      retention_mode: (body.retention_mode as "short_lived") || "short_lived",
+      retention_mode: body.retention_mode || "short_lived",
       interval_seconds: body.interval_seconds ?? 30,
       input_mode: body.input_mode ?? "hybrid",
       enable_prefilter: body.enable_prefilter ?? true,
@@ -191,14 +221,14 @@ export function createSessionRoutes(
       return c.json({ session_id: sessionId, job_id: jobId, state: "live" }, 201);
     } catch (err) {
       const message = err instanceof Error ? err.message : "Failed to start session";
-      return c.json({ session_id: sessionId, state: "error", error: message }, 400);
+      return c.json({ session_id: sessionId, state: "error", error: message, code: "SESSION_START_FAILED" }, 400);
     }
   });
 
   // --- Get session info ---
   app.get("/:id", (c) => {
     const session = sessionManager.getSession(c.req.param("id"));
-    if (!session) return c.json({ error: "Session not found" }, 404);
+    if (!session) return c.json({ error: "Session not found", code: "NOT_FOUND" }, 404);
 
     const jobs = sessionManager.getRunningJobs(session.session_id);
     return c.json({

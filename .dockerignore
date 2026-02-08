@@ -1,0 +1,12 @@
+node_modules
+frontend/node_modules
+.env
+.git
+.github
+data/
+dist/
+frontend/dist/
+*.md
+!README.md
+.claude
+e2e
