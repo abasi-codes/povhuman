@@ -89,4 +89,13 @@ describe("startRetentionWorker", () => {
     const rows = db.prepare("SELECT * FROM perception_events WHERE event_id = ?").all("e5");
     expect(rows).toHaveLength(1);
   });
+
+  it("logs error and continues when DB throws", () => {
+    const interval = startRetentionWorker(db, 1000);
+    // Close DB to force an error on next tick
+    db.close();
+    // Should not throw — error is caught and logged
+    expect(() => vi.advanceTimersByTime(1001)).not.toThrow();
+    clearInterval(interval);
+  });
 });

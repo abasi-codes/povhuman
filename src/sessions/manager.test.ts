@@ -194,4 +194,70 @@ describe("SessionManager", () => {
     const row = db.prepare("SELECT expires_at FROM perception_events WHERE event_id = ?").get(eventId) as { expires_at: string | null };
     expect(row.expires_at).toBeNull();
   });
+
+  // -- findJobSession --
+
+  it("findJobSession returns session_id for existing job", async () => {
+    const sessionId = await manager.createSession(buildSessionConfig());
+    await manager.startSession(sessionId);
+    const jobId = await manager.startMonitoringJob(sessionId, ["Is there a person?"]);
+    expect(manager.findJobSession(jobId)).toBe(sessionId);
+  });
+
+  it("findJobSession returns null for nonexistent job", () => {
+    expect(manager.findJobSession("nope")).toBeNull();
+  });
+
+  // -- markJobStopped --
+
+  it("markJobStopped updates job status and reason", async () => {
+    const sessionId = await manager.createSession(buildSessionConfig());
+    await manager.startSession(sessionId);
+    const jobId = await manager.startMonitoringJob(sessionId, ["Is there a person?"]);
+    manager.markJobStopped(jobId, "max_duration_reached");
+    const job = db.prepare("SELECT status, stop_reason FROM trio_jobs WHERE job_id = ?").get(jobId) as { status: string; stop_reason: string };
+    expect(job.status).toBe("stopped");
+    expect(job.stop_reason).toBe("max_duration_reached");
+  });
+
+  // -- getAllRunningJobs --
+
+  it("getAllRunningJobs returns jobs across sessions", async () => {
+    const s1 = await manager.createSession(buildSessionConfig());
+    await manager.startSession(s1);
+    await manager.startMonitoringJob(s1, ["Is there a person?"]);
+
+    mockTrio.startLiveMonitor.mockResolvedValue({ job_id: "job-2", status: "started" });
+    mockTrio.validateUrl.mockResolvedValue({ valid: true, is_live: true, url: "", platform: "youtube" });
+    const s2 = await manager.createSession(buildSessionConfig());
+    await manager.startSession(s2);
+    await manager.startMonitoringJob(s2, ["Is it raining?"]);
+
+    const allJobs = manager.getAllRunningJobs();
+    expect(allJobs).toHaveLength(2);
+  });
+
+  // -- restartJob error branch --
+
+  it("restartJob marks job as error when Trio call fails", async () => {
+    const sessionId = await manager.createSession(buildSessionConfig());
+    await manager.startSession(sessionId);
+    const jobId = await manager.startMonitoringJob(sessionId, ["Is there a person?"]);
+
+    mockTrio.startLiveMonitor.mockRejectedValue(new Error("Trio down"));
+    const result = await manager.restartJob(jobId);
+    expect(result).toBeNull();
+    const job = db.prepare("SELECT status, stop_reason FROM trio_jobs WHERE job_id = ?").get(jobId) as { status: string; stop_reason: string };
+    expect(job.status).toBe("error");
+    expect(job.stop_reason).toBe("restart_failed");
+  });
+
+  // -- startSession validation error path --
+
+  it("startSession sets error state when Trio validateUrl rejects", async () => {
+    mockTrio.validateUrl.mockResolvedValue({ valid: false, is_live: false, url: "", platform: "youtube", error: "bad url" });
+    const id = await manager.createSession(buildSessionConfig());
+    await expect(manager.startSession(id)).rejects.toThrow();
+    expect(manager.getSession(id)!.state).toBe("error");
+  });
 });
