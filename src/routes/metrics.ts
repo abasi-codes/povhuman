@@ -7,14 +7,15 @@ import { Hono } from "hono";
 
 const counters: Record<string, number> = {
   trio_webhooks_total: 0,
-  events_delivered_total: 0,
-  sessions_created_total: 0,
+  tasks_created_total: 0,
+  checkpoints_verified_total: 0,
+  tasks_completed_total: 0,
   job_restarts_total: 0,
   http_requests_total: 0,
 };
 
 const gauges: Record<string, number> = {
-  active_sessions: 0,
+  active_tasks: 0,
   active_jobs: 0,
 };
 

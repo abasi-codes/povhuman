@@ -1,45 +1,38 @@
 # Cost Model
 
-All VLM costs are billed directly by Google via your Gemini API key (BYOK model). Trio itself appears to be free or near-free.
+All VLM costs are billed directly by Google via the agent's Gemini API key (BYOK model). Trio itself is free.
 
-## Per-Session VLM Costs (Gemini Flash)
+## Per-Verification VLM Costs (Gemini Flash)
 
-| Scenario | VLM Calls/Hour | Cost/Hour | Cost/Day (8hr) |
-|----------|---------------|-----------|----------------|
-| 30s interval, prefilter ON (70% skip) | ~36 actual calls | ~$0.0007 | ~$0.006 |
-| 15s interval, prefilter ON | ~72 actual calls | ~$0.0014 | ~$0.011 |
-| 15s interval, prefilter OFF | ~240 calls | ~$0.0048 | ~$0.038 |
+| Scenario | VLM Calls/Hour | Cost/Hour | Cost/30min Task |
+|----------|---------------|-----------|-----------------|
+| 15s interval, prefilter ON (70% skip) | ~72 actual calls | ~$0.0014 | ~$0.001 |
+| 15s interval, prefilter OFF | ~240 calls | ~$0.0048 | ~$0.002 |
+| 30s interval, prefilter ON | ~36 actual calls | ~$0.0007 | ~$0.0004 |
 
 **Cost per VLM call:** ~$0.00002 (Gemini Flash)
 
-**Key levers:**
-- `enable_prefilter: true` (default) reduces VLM calls by 70-90%
-- Higher `interval_seconds` reduces calls linearly
-- `frames` input mode is cheapest; `hybrid` is most expensive but most accurate
+## Per-Task Cost Estimates
+
+| Task Duration | Checkpoints | Estimated VLM Cost |
+|---------------|-------------|-------------------|
+| 15 minutes | 2 | ~$0.005 |
+| 30 minutes | 3 | ~$0.01 |
+| 1 hour | 5 | ~$0.02 |
+| 2 hours | 5 | ~$0.04 |
 
 ## Infrastructure Costs
 
 | Component | Cost | Notes |
 |-----------|------|-------|
-| Webhook receiver (serverless) | ~$5-20/mo | AWS Lambda / Cloudflare Worker |
-| Privacy redaction GPU | ~$360/mo | NVIDIA T4, handles 18-40 streams |
-| Database (events, sessions) | ~$10-50/mo | Postgres on managed service |
-| YouTube Data API v3 | Free | 10,000 units/day quota is plenty |
+| ProofStream server | ~$20-50/mo | Node.js on VPS or serverless |
+| WebRTC relay (Janus) | ~$50-200/mo | Scales with concurrent streams |
+| Evidence redaction | ~$360/mo | GPU for face blur (shared) |
+| Database | ~$10-30/mo | SQLite or managed Postgres |
 
-## YouTube API Quota Budget
+## Cost Optimization
 
-| Operation | Cost (units) | Daily Budget (of 10,000) |
-|-----------|-------------|--------------------------|
-| `videos.list` (up to 50 IDs) | 1 | Use this for status checks |
-| `search.list` | 100 | NEVER use for status checks |
-| oEmbed | 0 (free) | Basic validation only |
-
-**Budget math:** 50 streams polled every 2 min = 720 units/day. Well within limit.
-
-## Cost Optimization Tips
-
-1. Start with `interval_seconds: 30` and `enable_prefilter: true`
-2. Only reduce interval for time-sensitive conditions (driving, person detection)
-3. Use `frames` mode instead of `hybrid` if motion detection isn't needed
-4. Combine multiple conditions into a single job (our condition combiner does this automatically)
-5. Monitor costs via Trio's `/metrics` Prometheus endpoint
+1. Use `enable_prefilter: true` (default) — reduces VLM calls by 70-90%
+2. Use `frames` mode (default) — cheapest, sufficient for checkpoint verification
+3. Multiple checkpoints combined into single Trio prompt (automatic)
+4. Tasks auto-expire after `max_duration_seconds` to prevent runaway costs

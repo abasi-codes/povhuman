@@ -1,5 +1,5 @@
-import { useSessionContext } from "../../context/SessionContext";
-import type { PerceptionEvent } from "../../api/types";
+import { useTaskContext } from "../../context/TaskContext";
+import type { VerificationEvent } from "../../api/types";
 
 function formatTime(iso: string): string {
   try {
@@ -12,40 +12,42 @@ function formatTime(iso: string): string {
 
 function typeLabel(type: string): string {
   switch (type) {
-    case "triggered": return "Triggered";
-    case "digest": return "Digest Ready";
-    case "restart": return "Job Restart";
-    case "status": return "Job Status";
-    case "heartbeat": return "Heartbeat";
+    case "checkpoint_verified": return "Checkpoint Verified";
+    case "task_completed": return "Task Completed";
+    case "task_started": return "Task Started";
+    case "task_cancelled": return "Task Cancelled";
+    case "task_failed": return "Task Failed";
+    case "job_restarted": return "Job Restarted";
     default: return type;
   }
 }
 
-const typeEmoji: Record<string, string> = {
-  triggered: "⚡",
-  digest: "📋",
-  restart: "🔄",
-  status: "📊",
-  heartbeat: "💓",
+const typeIcon: Record<string, string> = {
+  checkpoint_verified: "\u2705",
+  task_completed: "\uD83C\uDFC1",
+  task_started: "\u25B6\uFE0F",
+  task_cancelled: "\u274C",
+  task_failed: "\u26A0\uFE0F",
+  job_restarted: "\uD83D\uDD04",
 };
 
-function EventItem({ event }: { event: PerceptionEvent }) {
-  let condition: string | null = null;
-  try {
-    const meta = JSON.parse(event.metadata);
-    condition = meta.condition || null;
-  } catch { /* ignore */ }
+function EventItem({ event }: { event: VerificationEvent }) {
+  let meta: Record<string, string> = {};
+  try { meta = JSON.parse(event.metadata); } catch { /* ignore */ }
 
   return (
-    <div className={`evt ${event.type}`}>
+    <div className={`evt ${event.event_type}`}>
       <div className="evt-time">{formatTime(event.created_at)}</div>
       <div>
         <div className="evt-type">
-          {typeEmoji[event.type] || "•"} {typeLabel(event.type)}
+          {typeIcon[event.event_type] || "\u2022"} {typeLabel(event.event_type)}
+          {event.confidence != null && (
+            <span className="evt-confidence"> ({Math.round(event.confidence * 100)}%)</span>
+          )}
         </div>
-        <div className="event-explanation">{event.explanation || "—"}</div>
-        {condition && (
-          <div className="event-condition">Matched: &quot;{condition}&quot;</div>
+        <div className="event-explanation">{event.explanation || "\u2014"}</div>
+        {meta.type && (
+          <div className="event-condition">{meta.type}: {meta.target}</div>
         )}
       </div>
     </div>
@@ -53,13 +55,13 @@ function EventItem({ event }: { event: PerceptionEvent }) {
 }
 
 export function EventFeed() {
-  const { events, sessionId } = useSessionContext();
+  const { events, taskId } = useTaskContext();
 
-  if (!sessionId) {
+  if (!taskId) {
     return (
       <div className="event-feed">
         <div style={{ color: "var(--text3)", fontSize: 13, padding: 24, textAlign: "center" }}>
-          Start a session to see events
+          Create a task to see events
         </div>
       </div>
     );
@@ -69,7 +71,7 @@ export function EventFeed() {
     return (
       <div className="event-feed">
         <div style={{ color: "var(--text3)", fontSize: 13, padding: 24, textAlign: "center" }}>
-          Waiting for events...
+          Waiting for verification events...
         </div>
       </div>
     );

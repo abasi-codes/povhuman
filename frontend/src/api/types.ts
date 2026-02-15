@@ -1,26 +1,31 @@
-// Session types
-export type SessionState = "created" | "validating" | "live" | "paused" | "stopped" | "error";
-export type SharingScope = "events_only" | "events_and_frames" | "digests";
-export type RetentionMode = "no_storage" | "short_lived" | "extended";
-export type InputMode = "frames" | "clip" | "hybrid";
+// Task types
+export type TaskStatus =
+  | "pending"
+  | "awaiting_stream"
+  | "streaming"
+  | "verifying"
+  | "completed"
+  | "failed"
+  | "expired"
+  | "cancelled";
 
 export interface RedactionPolicy {
   blur_faces: boolean;
-  blur_screens: boolean;
   blur_text: boolean;
-  block_private_locations: boolean;
 }
 
-export interface SessionRow {
-  session_id: string;
-  stream_url: string;
-  stream_platform: string;
-  state: SessionState;
-  sharing_scope: SharingScope;
-  redaction_policy: string; // JSON string
-  retention_mode: RetentionMode;
-  created_at: string;
-  updated_at: string;
+export interface CheckpointInfo {
+  checkpoint_id: string;
+  type: string;
+  target: string;
+  description: string | null;
+  confidence_threshold: number;
+  required: boolean;
+  ordering: number;
+  verified: boolean;
+  verified_at: string | null;
+  confidence: number | null;
+  evidence_explanation: string | null;
 }
 
 export interface JobInfo {
@@ -30,86 +35,71 @@ export interface JobInfo {
   last_restart_gap_ms: number | null;
 }
 
-export interface SessionDetail extends SessionRow {
+export interface TaskDetail {
+  task_id: string;
+  agent_id: string;
+  description: string;
+  status: TaskStatus;
+  stream_url: string | null;
+  human_id: string | null;
+  verification_hash: string | null;
+  max_duration_seconds: number;
+  created_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  checkpoints: CheckpointInfo[];
   active_jobs: number;
   jobs: JobInfo[];
 }
 
-// Validate response
-export interface ValidateResponse {
-  valid: boolean;
-  video_id?: string;
-  is_live?: boolean;
-  title?: string;
-  channel?: string;
-  embeddable?: boolean;
-  platform?: string;
-  trio_validation?: string;
-  error?: string;
+// Create task
+export interface CreateTaskRequest {
+  description: string;
+  webhook_url: string;
+  checkpoints: Array<{
+    type: string;
+    target: string;
+    description?: string;
+    confidence_threshold?: number;
+    required?: boolean;
+    ordering?: number;
+  }>;
+  redaction_policy?: RedactionPolicy;
+  max_duration_seconds?: number;
 }
 
-// Create session request
-export interface CreateSessionRequest {
+export interface CreateTaskResponse {
+  task_id: string;
+  status: string;
   stream_url: string;
-  conditions?: string[];
-  preset_ids?: string[];
-  sharing_scope?: SharingScope;
-  redaction_policy?: Partial<RedactionPolicy>;
-  retention_mode?: RetentionMode;
-  interval_seconds?: number;
-  input_mode?: InputMode;
-  enable_prefilter?: boolean;
-  agent_ids?: string[];
-}
-
-export interface CreateSessionResponse {
-  session_id: string;
-  job_id?: string;
-  state: string;
-  error?: string;
-}
-
-// Condition presets
-export interface ConditionPreset {
-  id: string;
-  label: string;
-  condition: string;
-  recommended_interval: number;
-  recommended_input_mode: InputMode;
+  checkpoints: Array<{
+    checkpoint_id: string;
+    type: string;
+    target: string;
+    required: boolean;
+    ordering: number;
+  }>;
 }
 
 // Events
-export interface PerceptionEvent {
+export interface VerificationEvent {
   event_id: string;
-  session_id: string;
+  task_id: string;
   job_id: string | null;
-  type: "triggered" | "status" | "digest" | "heartbeat" | "restart";
+  checkpoint_id: string | null;
+  event_type: string;
+  confidence: number | null;
   explanation: string | null;
   metadata: string; // JSON string
   created_at: string;
   expires_at: string | null;
 }
 
-// Agent bindings
-export interface AgentBinding {
-  binding_id: string;
-  session_id: string;
+// Agent keys
+export interface AgentKey {
+  key_id: string;
   agent_id: string;
-  permissions: string; // JSON string
+  label: string | null;
   created_at: string;
   revoked_at: string | null;
-}
-
-// Test condition
-export interface TestConditionRequest {
-  url: string;
-  condition?: string;
-  preset_id?: string;
-  input_mode?: InputMode;
-}
-
-export interface TestConditionResponse {
-  triggered: boolean;
-  explanation: string;
-  has_frame: boolean;
 }

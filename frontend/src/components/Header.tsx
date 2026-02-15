@@ -1,8 +1,8 @@
 import { useEffect, useState } from "react";
-import { useSessionContext } from "../context/SessionContext";
+import { useTaskContext } from "../context/TaskContext";
 
 export function Header() {
-  const { session, sessionId } = useSessionContext();
+  const { task, taskId } = useTaskContext();
   const [clock, setClock] = useState("");
 
   useEffect(() => {
@@ -18,21 +18,25 @@ export function Header() {
     return () => clearInterval(id);
   }, []);
 
-  const state = session?.state ?? (sessionId ? "created" : "idle");
-  const badgeClass = state === "live" ? "live" : state === "paused" ? "paused" : state === "stopped" ? "stopped" : "idle";
-  const label = sessionId
-    ? `Session ${state.charAt(0).toUpperCase() + state.slice(1)}`
-    : "No Session";
+  const status = task?.status ?? (taskId ? "pending" : "idle");
+  const badgeClass =
+    status === "streaming" || status === "verifying" ? "live" :
+    status === "completed" ? "stopped" :
+    status === "cancelled" ? "stopped" :
+    "idle";
+  const label = taskId
+    ? `Task ${status.charAt(0).toUpperCase() + status.slice(1)}`
+    : "No Task";
 
   return (
     <header className="topbar">
       <div className="topbar-brand">
         <div className="eye-logo">
-          <span className="eye-logo-inner">👁</span>
+          <span className="eye-logo-inner">{"\uD83D\uDCF9"}</span>
         </div>
         <div>
-          <div className="brand-name">World Through My Eyes</div>
-          <div className="brand-sub">OpenClaw Perception Connector</div>
+          <div className="brand-name">ProofStream</div>
+          <div className="brand-sub">Livestream Verification</div>
         </div>
       </div>
       <div className="topbar-status">

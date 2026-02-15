@@ -13,10 +13,10 @@ describe("startRetentionWorker", () => {
   beforeEach(() => {
     vi.useFakeTimers();
     db = createTestDb();
-    // Insert a session for FK
+    // Insert a task for FK
     db.prepare(
-      "INSERT INTO sessions (session_id, stream_url, state) VALUES (?, ?, ?)"
-    ).run("s1", "https://youtube.com/watch?v=abc", "live");
+      "INSERT INTO tasks (task_id, agent_id, description, webhook_url) VALUES (?, ?, ?, ?)"
+    ).run("t1", "agent-1", "Test", "https://example.com/hook");
   });
 
   afterEach(() => {
@@ -25,76 +25,73 @@ describe("startRetentionWorker", () => {
   });
 
   it("deletes events with expired expires_at", () => {
-    // Insert an already-expired event
     db.prepare(
-      "INSERT INTO perception_events (event_id, session_id, type, expires_at) VALUES (?, ?, ?, datetime('now', '-1 hour'))"
-    ).run("e1", "s1", "triggered");
+      "INSERT INTO verification_events (event_id, task_id, event_type, expires_at) VALUES (?, ?, ?, datetime('now', '-1 hour'))"
+    ).run("e1", "t1", "checkpoint_verified");
 
     const interval = startRetentionWorker(db, 1000);
     vi.advanceTimersByTime(1001);
     clearInterval(interval);
 
-    const rows = db.prepare("SELECT * FROM perception_events WHERE event_id = ?").all("e1");
+    const rows = db.prepare("SELECT * FROM verification_events WHERE event_id = ?").all("e1");
     expect(rows).toHaveLength(0);
   });
 
   it("preserves events with future expires_at", () => {
     db.prepare(
-      "INSERT INTO perception_events (event_id, session_id, type, expires_at) VALUES (?, ?, ?, datetime('now', '+1 hour'))"
-    ).run("e2", "s1", "triggered");
+      "INSERT INTO verification_events (event_id, task_id, event_type, expires_at) VALUES (?, ?, ?, datetime('now', '+1 hour'))"
+    ).run("e2", "t1", "checkpoint_verified");
 
     const interval = startRetentionWorker(db, 1000);
     vi.advanceTimersByTime(1001);
     clearInterval(interval);
 
-    const rows = db.prepare("SELECT * FROM perception_events WHERE event_id = ?").all("e2");
+    const rows = db.prepare("SELECT * FROM verification_events WHERE event_id = ?").all("e2");
     expect(rows).toHaveLength(1);
   });
 
-  it("clears frame_b64 older than 15 minutes", () => {
+  it("clears evidence_frame_b64 older than 60 minutes", () => {
     db.prepare(
-      "INSERT INTO perception_events (event_id, session_id, type, frame_b64, created_at) VALUES (?, ?, ?, ?, datetime('now', '-20 minutes'))"
-    ).run("e3", "s1", "triggered", "oldframe");
+      "INSERT INTO verification_events (event_id, task_id, event_type, evidence_frame_b64, created_at) VALUES (?, ?, ?, ?, datetime('now', '-65 minutes'))"
+    ).run("e3", "t1", "checkpoint_verified", "oldframe");
 
     const interval = startRetentionWorker(db, 1000);
     vi.advanceTimersByTime(1001);
     clearInterval(interval);
 
-    const row = db.prepare("SELECT frame_b64 FROM perception_events WHERE event_id = ?").get("e3") as { frame_b64: string | null };
-    expect(row.frame_b64).toBeNull();
+    const row = db.prepare("SELECT evidence_frame_b64 FROM verification_events WHERE event_id = ?").get("e3") as { evidence_frame_b64: string | null };
+    expect(row.evidence_frame_b64).toBeNull();
   });
 
-  it("keeps frame_b64 for recent events", () => {
+  it("keeps evidence_frame_b64 for recent events", () => {
     db.prepare(
-      "INSERT INTO perception_events (event_id, session_id, type, frame_b64) VALUES (?, ?, ?, ?)"
-    ).run("e4", "s1", "triggered", "recentframe");
+      "INSERT INTO verification_events (event_id, task_id, event_type, evidence_frame_b64) VALUES (?, ?, ?, ?)"
+    ).run("e4", "t1", "checkpoint_verified", "recentframe");
 
     const interval = startRetentionWorker(db, 1000);
     vi.advanceTimersByTime(1001);
     clearInterval(interval);
 
-    const row = db.prepare("SELECT frame_b64 FROM perception_events WHERE event_id = ?").get("e4") as { frame_b64: string | null };
-    expect(row.frame_b64).toBe("recentframe");
+    const row = db.prepare("SELECT evidence_frame_b64 FROM verification_events WHERE event_id = ?").get("e4") as { evidence_frame_b64: string | null };
+    expect(row.evidence_frame_b64).toBe("recentframe");
   });
 
   it("preserves events without expires_at", () => {
     db.prepare(
-      "INSERT INTO perception_events (event_id, session_id, type) VALUES (?, ?, ?)"
-    ).run("e5", "s1", "triggered");
+      "INSERT INTO verification_events (event_id, task_id, event_type) VALUES (?, ?, ?)"
+    ).run("e5", "t1", "checkpoint_verified");
 
     const interval = startRetentionWorker(db, 1000);
     vi.advanceTimersByTime(1001);
     clearInterval(interval);
 
-    const rows = db.prepare("SELECT * FROM perception_events WHERE event_id = ?").all("e5");
+    const rows = db.prepare("SELECT * FROM verification_events WHERE event_id = ?").all("e5");
     expect(rows).toHaveLength(1);
   });
 
   it("logs error and continues when DB throws", () => {
     const interval = startRetentionWorker(db, 1000);
-    // Close DB to force an error on next tick
     db.close();
-    // Should not throw — error is caught and logged
     expect(() => vi.advanceTimersByTime(1001)).not.toThrow();
     clearInterval(interval);
   });

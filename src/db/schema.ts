@@ -7,43 +7,53 @@ export function initDatabase(dbPath: string): Database.Database {
   db.pragma("foreign_keys = ON");
 
   db.exec(`
-    CREATE TABLE IF NOT EXISTS sessions (
-      session_id TEXT PRIMARY KEY,
-      stream_url TEXT NOT NULL,
-      stream_platform TEXT NOT NULL DEFAULT 'youtube',
-      state TEXT NOT NULL DEFAULT 'created',
-      -- state: created | validating | live | paused | stopped | error
-      sharing_scope TEXT NOT NULL DEFAULT 'events_only',
-      -- sharing_scope: events_only | events_and_frames | digests
+    CREATE TABLE IF NOT EXISTS tasks (
+      task_id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      description TEXT NOT NULL,
+      webhook_url TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      -- status: pending | awaiting_stream | streaming | verifying | completed | failed | expired | cancelled
+      stream_url TEXT,
+      human_id TEXT,
+      verification_hash TEXT,
       redaction_policy TEXT NOT NULL DEFAULT '{}',
-      retention_mode TEXT NOT NULL DEFAULT 'short_lived',
-      -- retention_mode: no_storage | short_lived | extended
+      max_duration_seconds INTEGER NOT NULL DEFAULT 3600,
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+      updated_at TEXT NOT NULL DEFAULT (datetime('now')),
+      started_at TEXT,
+      completed_at TEXT,
+      expires_at TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS agent_bindings (
-      binding_id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-      agent_id TEXT NOT NULL,
-      permissions TEXT NOT NULL DEFAULT '{}',
-      -- permissions: JSON with events, frames_on_trigger, digests booleans
-      created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      revoked_at TEXT
+    CREATE TABLE IF NOT EXISTS checkpoints (
+      checkpoint_id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+      type TEXT NOT NULL,
+      -- type: location | object | document | person | action | duration | text
+      target TEXT NOT NULL,
+      description TEXT,
+      confidence_threshold REAL NOT NULL DEFAULT 0.8,
+      required INTEGER NOT NULL DEFAULT 1,
+      ordering INTEGER NOT NULL DEFAULT 0,
+      verified INTEGER NOT NULL DEFAULT 0,
+      verified_at TEXT,
+      evidence_frame_b64 TEXT,
+      evidence_explanation TEXT,
+      confidence REAL,
+      metadata TEXT NOT NULL DEFAULT '{}',
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS trio_jobs (
       job_id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
-      job_type TEXT NOT NULL,
-      -- job_type: live-monitor | live-digest
+      task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+      job_type TEXT NOT NULL DEFAULT 'live-monitor',
       condition TEXT,
-      interval_seconds INTEGER NOT NULL DEFAULT 30,
-      input_mode TEXT NOT NULL DEFAULT 'hybrid',
-      clip_duration_seconds INTEGER,
+      interval_seconds INTEGER NOT NULL DEFAULT 15,
+      input_mode TEXT NOT NULL DEFAULT 'frames',
       enable_prefilter INTEGER NOT NULL DEFAULT 1,
       status TEXT NOT NULL DEFAULT 'running',
-      -- status: running | stopped | error | completed
       stop_reason TEXT,
       restart_count INTEGER NOT NULL DEFAULT 0,
       last_restart_at TEXT,
@@ -52,23 +62,34 @@ export function initDatabase(dbPath: string): Database.Database {
       stopped_at TEXT
     );
 
-    CREATE TABLE IF NOT EXISTS perception_events (
+    CREATE TABLE IF NOT EXISTS verification_events (
       event_id TEXT PRIMARY KEY,
-      session_id TEXT NOT NULL REFERENCES sessions(session_id) ON DELETE CASCADE,
+      task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
       job_id TEXT REFERENCES trio_jobs(job_id),
-      type TEXT NOT NULL,
-      -- type: triggered | status | digest | heartbeat | restart
+      checkpoint_id TEXT REFERENCES checkpoints(checkpoint_id),
+      event_type TEXT NOT NULL,
+      confidence REAL,
       explanation TEXT,
-      frame_b64 TEXT,
+      evidence_frame_b64 TEXT,
       metadata TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
       expires_at TEXT
     );
 
-    CREATE INDEX IF NOT EXISTS idx_jobs_session ON trio_jobs(session_id);
-    CREATE INDEX IF NOT EXISTS idx_events_session ON perception_events(session_id);
-    CREATE INDEX IF NOT EXISTS idx_events_expires ON perception_events(expires_at);
-    CREATE INDEX IF NOT EXISTS idx_bindings_session ON agent_bindings(session_id);
+    CREATE TABLE IF NOT EXISTS agent_keys (
+      key_id TEXT PRIMARY KEY,
+      agent_id TEXT NOT NULL,
+      key_hash TEXT NOT NULL,
+      label TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      revoked_at TEXT
+    );
+
+    CREATE INDEX IF NOT EXISTS idx_checkpoints_task ON checkpoints(task_id);
+    CREATE INDEX IF NOT EXISTS idx_jobs_task ON trio_jobs(task_id);
+    CREATE INDEX IF NOT EXISTS idx_events_task ON verification_events(task_id);
+    CREATE INDEX IF NOT EXISTS idx_events_expires ON verification_events(expires_at);
+    CREATE INDEX IF NOT EXISTS idx_agent_keys_agent ON agent_keys(agent_id);
   `);
 
   logger.info({ dbPath }, "Database initialized");
@@ -77,26 +98,49 @@ export function initDatabase(dbPath: string): Database.Database {
 
 // --- Type-safe row interfaces ---
 
-export interface SessionRow {
-  session_id: string;
-  stream_url: string;
-  stream_platform: string;
-  state: "created" | "validating" | "live" | "paused" | "stopped" | "error";
-  sharing_scope: string;
+export interface TaskRow {
+  task_id: string;
+  agent_id: string;
+  description: string;
+  webhook_url: string;
+  status: string;
+  stream_url: string | null;
+  human_id: string | null;
+  verification_hash: string | null;
   redaction_policy: string;
-  retention_mode: string;
+  max_duration_seconds: number;
   created_at: string;
   updated_at: string;
+  started_at: string | null;
+  completed_at: string | null;
+  expires_at: string | null;
+}
+
+export interface CheckpointRow {
+  checkpoint_id: string;
+  task_id: string;
+  type: string;
+  target: string;
+  description: string | null;
+  confidence_threshold: number;
+  required: number;
+  ordering: number;
+  verified: number;
+  verified_at: string | null;
+  evidence_frame_b64: string | null;
+  evidence_explanation: string | null;
+  confidence: number | null;
+  metadata: string;
+  created_at: string;
 }
 
 export interface TrioJobRow {
   job_id: string;
-  session_id: string;
+  task_id: string;
   job_type: string;
   condition: string | null;
   interval_seconds: number;
   input_mode: string;
-  clip_duration_seconds: number | null;
   enable_prefilter: number;
   status: string;
   stop_reason: string | null;
@@ -107,23 +151,25 @@ export interface TrioJobRow {
   stopped_at: string | null;
 }
 
-export interface PerceptionEventRow {
+export interface VerificationEventRow {
   event_id: string;
-  session_id: string;
+  task_id: string;
   job_id: string | null;
-  type: string;
+  checkpoint_id: string | null;
+  event_type: string;
+  confidence: number | null;
   explanation: string | null;
-  frame_b64: string | null;
+  evidence_frame_b64: string | null;
   metadata: string;
   created_at: string;
   expires_at: string | null;
 }
 
-export interface AgentBindingRow {
-  binding_id: string;
-  session_id: string;
+export interface AgentKeyRow {
+  key_id: string;
   agent_id: string;
-  permissions: string;
+  key_hash: string;
+  label: string | null;
   created_at: string;
   revoked_at: string | null;
 }

@@ -1,12 +1,16 @@
-import { useSessionContext } from "../../context/SessionContext";
+import { useTaskContext } from "../../context/TaskContext";
 
 export function ResourceGauges() {
-  const { session } = useSessionContext();
+  const { task } = useTaskContext();
 
-  const activeJobs = session?.active_jobs ?? 0;
+  const activeJobs = task?.active_jobs ?? 0;
   const maxJobs = 10;
-  const circumference = 2 * Math.PI * 20; // r=20
+  const circumference = 2 * Math.PI * 20;
   const offset = circumference - (activeJobs / maxJobs) * circumference;
+
+  const checkpointsVerified = task?.checkpoints.filter((cp) => cp.verified).length ?? 0;
+  const checkpointsTotal = task?.checkpoints.length ?? 0;
+  const progress = checkpointsTotal > 0 ? (checkpointsVerified / checkpointsTotal) * 100 : 0;
 
   return (
     <div className="card">
@@ -14,11 +18,11 @@ export function ResourceGauges() {
 
       <div className="usg-section">
         <div className="usg-header">
-          <span className="usg-label">YouTube API Quota</span>
-          <span className="usg-value">Remaining</span>
+          <span className="usg-label">Verification Progress</span>
+          <span className="usg-value">{checkpointsVerified}/{checkpointsTotal}</span>
         </div>
         <div className="usg-bar">
-          <div className="usg-fill blue" style={{ width: "88%" }} />
+          <div className="usg-fill blue" style={{ width: `${progress}%` }} />
         </div>
       </div>
 
@@ -46,15 +50,18 @@ export function ResourceGauges() {
         </div>
       </div>
 
-      {session && (
+      {task && (
         <div className="session-info-box">
           <div style={{ color: "var(--text2)", marginBottom: 4 }}>
-            Session: <span style={{ color: "var(--blue)", fontSize: 12, fontWeight: 600 }}>
-              {session.session_id}
+            Task: <span style={{ color: "var(--blue)", fontSize: 12, fontWeight: 600 }}>
+              {task.task_id}
             </span>
           </div>
-          <div>Started: {session.created_at}</div>
-          <div>Retention: {session.retention_mode}</div>
+          <div>Status: {task.status}</div>
+          <div>Created: {task.created_at}</div>
+          {task.verification_hash && (
+            <div>Hash: {task.verification_hash.slice(0, 16)}...</div>
+          )}
         </div>
       )}
     </div>

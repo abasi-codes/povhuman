@@ -4,9 +4,16 @@
 
 - [ ] `GOOGLE_API_KEY` stored ONLY in environment variables or a secrets manager
 - [ ] Key is NEVER written to config files, logs, or source code
-- [ ] Key is NEVER exposed to OpenClaw agents or stored in OpenClaw config
+- [ ] Key is NEVER exposed to agents or included in webhook payloads
 - [ ] Key rotation procedure documented and tested
-- [ ] Users informed that VLM costs are billed to their Google account
+- [ ] Agents informed that VLM costs are billed to their Google account
+
+## Agent API Keys
+
+- [ ] Agent keys hashed (SHA-256) before storage — raw key shown only once
+- [ ] Key revocation available via `DELETE /api/v1/agents/keys/:keyId`
+- [ ] Keys prefixed with `ps_` for identification
+- [ ] Revoked keys immediately rejected on subsequent requests
 
 ## Webhook Security
 
@@ -14,36 +21,27 @@
 - [ ] `X-Trio-Signature` header verified on every incoming webhook
 - [ ] Webhook endpoint responds within 5 seconds (process async)
 - [ ] Idempotency tracking prevents duplicate event processing
-- [ ] Fallback polling via `GET /jobs/{job_id}` as backup
+- [ ] Fallback polling via heartbeat monitor as backup
 
-## OpenClaw Agent Isolation
-
-- [ ] `session.dmScope: "per-channel-peer"` set for per-session isolation
-- [ ] Agents NEVER receive raw YouTube stream URLs
-- [ ] Policy gateway enforces permission scopes (events, frames, digests)
-- [ ] Starting/stopping monitoring requires explicit user confirmation
-- [ ] Agent bindings can be instantly revoked
-
-## Privacy & Redaction
+## Evidence & Privacy
 
 - [ ] Face blurring enabled by default (`REDACTION_ENABLED=true`)
 - [ ] Fail-closed mode active (`REDACTION_FAIL_CLOSED=true`)
-- [ ] Private location detection drops frames from bathrooms/bedrooms
-- [ ] Frames retained for max 15 minutes (configurable)
-- [ ] "No storage" mode available for privacy-sensitive users
+- [ ] Evidence frames cleared after 60 minutes (retention worker)
+- [ ] Agents never receive raw stream URLs
+- [ ] Verification hash (SHA-256) generated from checkpoint evidence on completion
 
-## Legal Compliance
+## Agent Isolation
 
-- [ ] BIPA: No facial geometry collected without consent (faces are blurred before VLM)
-- [ ] GDPR: Redaction applied before frames sent to Google's Gemini API
-- [ ] EU AI Act: No real-time biometric identification in public spaces
-- [ ] YouTube ToS: Frame capture delegated to Trio (contractual arm's length)
-- [ ] Captured frames never stored longer than the processing window
+- [ ] Agents receive only structured verification events, not raw frames
+- [ ] Policy gateway strips stream URLs and sensitive metadata
+- [ ] Creating/cancelling tasks requires explicit authorization
+- [ ] Each agent uses its own API key for authentication
 
 ## Infrastructure
 
 - [ ] HTTPS enforced for all webhook endpoints
-- [ ] Rate limiting on API endpoints
-- [ ] No sensitive data in application logs
-- [ ] Database encrypted at rest
+- [ ] Rate limiting: 60 req/min general, 10 req/min for task creation
+- [ ] No sensitive data in application logs (pino redaction configured)
 - [ ] Graceful shutdown handles in-flight events
+- [ ] Security headers: HSTS, X-Frame-Options, CSP, Permissions-Policy

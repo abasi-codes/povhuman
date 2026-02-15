@@ -2,11 +2,10 @@ import pino from "pino";
 
 const SENSITIVE_KEYS = [
   "GOOGLE_API_KEY",
-  "OPENCLAW_BEARER_TOKEN",
   "TRIO_WEBHOOK_SECRET",
-  "YOUTUBE_API_KEY",
   "authorization",
   "cookie",
+  "key_hash",
 ];
 
 function redactValue(key: string, value: unknown): unknown {
@@ -28,20 +27,15 @@ export const logger = pino({
   redact: {
     paths: [
       "GOOGLE_API_KEY",
-      "OPENCLAW_BEARER_TOKEN",
       "TRIO_WEBHOOK_SECRET",
-      "YOUTUBE_API_KEY",
       "*.GOOGLE_API_KEY",
-      "*.OPENCLAW_BEARER_TOKEN",
       "*.TRIO_WEBHOOK_SECRET",
-      "*.YOUTUBE_API_KEY",
       "headers.authorization",
       "headers.cookie",
     ],
     censor: "[REDACTED]",
   },
   serializers: {
-    // Catch-all for any object that might contain secrets
     req: (req) => {
       if (!req) return req;
       const serialized: Record<string, unknown> = {

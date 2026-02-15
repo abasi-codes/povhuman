@@ -1,20 +1,20 @@
 import { useState, useEffect, useRef, useCallback } from "react";
 import { getEvents } from "../api/events";
-import type { PerceptionEvent } from "../api/types";
+import type { VerificationEvent } from "../api/types";
 
 const MAX_EVENTS = 100;
 
-export function useEvents(sessionId: string | null, intervalMs = 3000) {
-  const [events, setEvents] = useState<PerceptionEvent[]>([]);
+export function useEvents(taskId: string | null, intervalMs = 3000) {
+  const [events, setEvents] = useState<VerificationEvent[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const seenIds = useRef(new Set<string>());
 
   const doFetch = useCallback(async () => {
-    if (!sessionId) return;
+    if (!taskId) return;
     try {
       setLoading(true);
-      const { events: newEvents } = await getEvents(sessionId, 50);
+      const { events: newEvents } = await getEvents(taskId, 50);
 
       setEvents((prev) => {
         const merged = [...prev];
@@ -24,9 +24,7 @@ export function useEvents(sessionId: string | null, intervalMs = 3000) {
             merged.push(evt);
           }
         }
-        // Sort descending by created_at
         merged.sort((a, b) => b.created_at.localeCompare(a.created_at));
-        // Keep latest MAX_EVENTS
         return merged.slice(0, MAX_EVENTS);
       });
       setError(null);
@@ -35,19 +33,18 @@ export function useEvents(sessionId: string | null, intervalMs = 3000) {
     } finally {
       setLoading(false);
     }
-  }, [sessionId]);
+  }, [taskId]);
 
   useEffect(() => {
-    if (!sessionId) return;
+    if (!taskId) return;
 
-    // Reset on session change
     setEvents([]);
     seenIds.current.clear();
 
     doFetch();
     const id = setInterval(doFetch, intervalMs);
     return () => clearInterval(id);
-  }, [sessionId, intervalMs, doFetch]);
+  }, [taskId, intervalMs, doFetch]);
 
   return { events, loading, error, refresh: doFetch };
 }

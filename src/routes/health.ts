@@ -6,8 +6,8 @@ export function createHealthRoutes(): Hono {
   app.get("/", (c) => {
     return c.json({
       status: "ok",
-      service: "world-through-my-eyes",
-      version: "0.1.0",
+      service: "proofstream",
+      version: "0.2.0",
       timestamp: new Date().toISOString(),
     });
   });

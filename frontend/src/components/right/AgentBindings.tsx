@@ -1,97 +1,99 @@
 import { useState, useEffect, useCallback } from "react";
-import { useSessionContext } from "../../context/SessionContext";
-import { getAgents, bindAgent, revokeAgent } from "../../api/agents";
-import type { AgentBinding } from "../../api/types";
+import { getAgentKeys, createAgentKey, revokeAgentKey } from "../../api/agents";
+import type { AgentKey } from "../../api/types";
 
 export function AgentBindings() {
-  const { sessionId } = useSessionContext();
-  const [agents, setAgents] = useState<AgentBinding[]>([]);
+  const [keys, setKeys] = useState<AgentKey[]>([]);
   const [newAgentId, setNewAgentId] = useState("");
+  const [newLabel, setNewLabel] = useState("");
   const [loading, setLoading] = useState(false);
+  const [lastKey, setLastKey] = useState<string | null>(null);
 
-  const fetchAgents = useCallback(async () => {
-    if (!sessionId) return;
+  const fetchKeys = useCallback(async () => {
+    if (!newAgentId.trim()) return;
     try {
-      const { agents: a } = await getAgents(sessionId);
-      setAgents(a);
+      const { keys: k } = await getAgentKeys(newAgentId.trim());
+      setKeys(k);
     } catch { /* ignore */ }
-  }, [sessionId]);
+  }, [newAgentId]);
 
   useEffect(() => {
-    fetchAgents();
-  }, [fetchAgents]);
+    if (newAgentId.trim()) fetchKeys();
+  }, [fetchKeys, newAgentId]);
 
-  const handleBind = async () => {
-    if (!sessionId || !newAgentId.trim()) return;
+  const handleCreate = async () => {
+    if (!newAgentId.trim()) return;
     setLoading(true);
     try {
-      await bindAgent(sessionId, newAgentId.trim(), {
-        events: true,
-        frames_on_trigger: false,
-        digests: false,
-      });
-      setNewAgentId("");
-      await fetchAgents();
+      const result = await createAgentKey(newAgentId.trim(), newLabel || undefined);
+      setLastKey(result.api_key);
+      setNewLabel("");
+      await fetchKeys();
     } catch { /* ignore */ }
     setLoading(false);
   };
 
-  const handleRevoke = async (agentId: string) => {
-    if (!sessionId) return;
-    await revokeAgent(sessionId, agentId);
-    await fetchAgents();
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter") handleBind();
+  const handleRevoke = async (keyId: string) => {
+    await revokeAgentKey(keyId);
+    await fetchKeys();
   };
 
   return (
     <div className="card">
-      <div className="card-title">Agent Bindings</div>
+      <div className="card-title">Agent API Keys</div>
+
+      <div className="form-group">
+        <label className="form-label">Agent ID</label>
+        <input
+          type="text"
+          value={newAgentId}
+          onChange={(e) => setNewAgentId(e.target.value)}
+          placeholder="agent-id..."
+        />
+      </div>
 
       <div className="agent-list">
-        {agents.map((a) => {
-          let perms: Record<string, boolean> = {};
-          try { perms = JSON.parse(a.permissions); } catch { /* ignore */ }
-          return (
-            <div key={a.binding_id} className="agent">
-              <div className="agent-header">
-                <div className="agent-name">{a.agent_id}</div>
-                <button className="agent-revoke" onClick={() => handleRevoke(a.agent_id)}>
-                  Revoke
-                </button>
-              </div>
-              <div className="agent-perms">
-                <span className={`pp ${perms.events ? "y" : "n"}`}>events</span>
-                <span className={`pp ${perms.frames_on_trigger ? "y" : "n"}`}>frames</span>
-                <span className={`pp ${perms.digests ? "y" : "n"}`}>digests</span>
-              </div>
+        {keys.map((k) => (
+          <div key={k.key_id} className="agent">
+            <div className="agent-header">
+              <div className="agent-name">{k.label || k.key_id}</div>
+              <button className="agent-revoke" onClick={() => handleRevoke(k.key_id)}>
+                Revoke
+              </button>
             </div>
-          );
-        })}
-        {agents.length === 0 && (
+            <div className="agent-perms">
+              <span className="pp y">Created: {k.created_at}</span>
+            </div>
+          </div>
+        ))}
+        {keys.length === 0 && newAgentId.trim() && (
           <div style={{ color: "var(--text3)", fontSize: 13, textAlign: "center", padding: 14 }}>
-            No agents bound
+            No active keys
           </div>
         )}
       </div>
 
-      {sessionId && (
-        <div className="agent-bind-row">
-          <input
-            type="text"
-            value={newAgentId}
-            onChange={(e) => setNewAgentId(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="agent-id..."
-            disabled={loading}
-          />
-          <button className="btn" onClick={handleBind} disabled={loading || !newAgentId.trim()}>
-            {loading ? <span className="spinner" /> : "Bind"}
-          </button>
+      {lastKey && (
+        <div className="key-display">
+          <div style={{ color: "var(--amber)", fontSize: 12, marginBottom: 4 }}>
+            Save this key — it won't be shown again:
+          </div>
+          <code className="key-value">{lastKey}</code>
         </div>
       )}
+
+      <div className="agent-bind-row">
+        <input
+          type="text"
+          value={newLabel}
+          onChange={(e) => setNewLabel(e.target.value)}
+          placeholder="Key label..."
+          disabled={loading}
+        />
+        <button className="btn" onClick={handleCreate} disabled={loading || !newAgentId.trim()}>
+          {loading ? <span className="spinner" /> : "Create Key"}
+        </button>
+      </div>
     </div>
   );
 }

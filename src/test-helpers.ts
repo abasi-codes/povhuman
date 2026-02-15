@@ -1,6 +1,6 @@
 import { createHmac } from "node:crypto";
 import { initDatabase } from "./db/schema.js";
-import type { SessionConfig } from "./sessions/types.js";
+import type { TaskConfig, CheckpointConfig } from "./tasks/types.js";
 import type { AnyWebhookPayload, MonitorTriggeredPayload, DigestReadyPayload, JobStatusPayload, JobErrorPayload } from "./trio/types.js";
 
 /**
@@ -36,7 +36,7 @@ export function mockFetch(
  */
 export function createMockTrioClient(overrides: Record<string, unknown> = {}) {
   return {
-    validateUrl: vi.fn().mockResolvedValue({ valid: true, is_live: true, url: "", platform: "youtube" }),
+    validateUrl: vi.fn().mockResolvedValue({ valid: true, is_live: true, url: "", platform: "rtsp" }),
     prepareStream: vi.fn().mockResolvedValue({ stream_id: "s1", embed_url: "http://e", cached: false }),
     startLiveMonitor: vi.fn().mockResolvedValue({ job_id: "job-1", status: "started" }),
     startLiveDigest: vi.fn().mockResolvedValue({ job_id: "job-2", status: "started" }),
@@ -63,9 +63,9 @@ export function buildWebhookPayload(
     return {
       ...base,
       event: "live_monitor_triggered",
-      explanation: "person detected",
+      explanation: "checkpoint detected",
       frame_b64: "base64data",
-      condition: "Is there a person?",
+      condition: "Is there a package visible?",
       check_number: 1,
       ...overrides,
     } as MonitorTriggeredPayload;
@@ -101,24 +101,37 @@ export function buildWebhookPayload(
 }
 
 /**
- * Build a SessionConfig for tests.
+ * Build a TaskConfig for tests.
  */
-export function buildSessionConfig(overrides: Partial<SessionConfig> = {}): SessionConfig {
+export function buildTaskConfig(overrides: Partial<TaskConfig> = {}): TaskConfig {
   return {
-    stream_url: "https://www.youtube.com/watch?v=dQw4w9WgXcQ",
-    conditions: ["Is there a person visible?"],
-    sharing_scope: "events_only",
+    agent_id: "agent-1",
+    description: "Verify package delivery at office",
+    webhook_url: "https://example.com/webhook",
+    checkpoints: [
+      { type: "location", target: "123 Main Street office building" },
+      { type: "object", target: "cardboard package" },
+    ],
     redaction_policy: {
       blur_faces: true,
-      blur_screens: false,
       blur_text: false,
-      block_private_locations: true,
     },
-    retention_mode: "short_lived",
-    interval_seconds: 30,
-    input_mode: "hybrid",
-    enable_prefilter: true,
-    agent_ids: ["agent-1"],
+    max_duration_seconds: 3600,
+    ...overrides,
+  };
+}
+
+/**
+ * Build a CheckpointConfig for tests.
+ */
+export function buildCheckpointConfig(overrides: Partial<CheckpointConfig> = {}): CheckpointConfig {
+  return {
+    type: "location",
+    target: "123 Main Street",
+    description: "Verify arrival at delivery location",
+    confidence_threshold: 0.8,
+    required: true,
+    ordering: 0,
     ...overrides,
   };
 }

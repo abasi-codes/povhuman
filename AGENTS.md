@@ -1,26 +1,26 @@
-# AGENTS.md — World Through My Eyes Connector
+# AGENTS.md — ProofStream
 
 ## Confirmation Rules
 
 The following actions MUST require explicit user confirmation before execution:
 
-1. **start_monitoring** — Starting a new monitoring session (creates Trio jobs, incurs API costs)
-2. **stop_monitoring** — Stopping an active session (terminates all jobs, revokes agent bindings)
-3. **change_conditions** — Modifying what the agent watches for (restarts jobs with new conditions)
-4. **bind_agent** — Granting a new agent access to perception events
-5. **revoke_agent** — Revoking an agent's access to a session
+1. **create_task** — Creating a verification task (starts monitoring, incurs VLM costs)
+2. **cancel_task** — Cancelling a running task (stops all Trio jobs)
+3. **start_streaming** — Starting livestream monitoring (begins Trio inference)
+4. **revoke_key** — Revoking an agent's API key
 
 ## Security Rules
 
-- NEVER store API keys (GOOGLE_API_KEY, OPENCLAW_BEARER_TOKEN) in config files, source code, or logs
-- NEVER expose raw YouTube stream URLs to agents — use the policy gateway
-- NEVER send unredacted frames when redaction is enabled — fail closed
-- All agent bindings use `session.dmScope: "per-channel-peer"` for isolation
+- NEVER store API keys (GOOGLE_API_KEY) in config files, source code, or logs
+- NEVER expose raw stream URLs to agents — use the policy gateway
+- NEVER store unredacted evidence frames when redaction is enabled — fail closed
 - Webhook signature verification is mandatory in production
+- Agent API keys are hashed (SHA-256) before storage — raw key shown only once at creation
 
 ## Architecture Notes
 
-- Trio jobs auto-stop after 10 minutes — the session manager auto-restarts them
+- Trio jobs auto-stop after 10 minutes — the task manager auto-restarts them
 - The webhook receiver must respond within 5 seconds — process events asynchronously
-- YouTube API quota is 10,000 units/day — use batched videos.list (1 unit) instead of search.list (100 units)
-- VLM costs are billed to the user's Google account via their Gemini API key (BYOK model)
+- Multiple checkpoints are combined into a single Trio prompt to conserve the 10-job limit
+- VLM costs are billed to the agent's Google account via their Gemini API key (BYOK model)
+- Verification hashes are SHA-256 digests of checkpoint evidence, computed locally

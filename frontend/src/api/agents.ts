@@ -1,32 +1,27 @@
 import { apiFetch } from "./client";
-import type { AgentBinding } from "./types";
+import type { AgentKey } from "./types";
 
-export async function getAgents(
-  sessionId: string,
-): Promise<{ agents: AgentBinding[] }> {
-  return apiFetch<{ agents: AgentBinding[] }>(`/sessions/${sessionId}/agents`);
+export async function getAgentKeys(
+  agentId: string,
+): Promise<{ keys: AgentKey[] }> {
+  return apiFetch<{ keys: AgentKey[] }>(`/api/v1/agents/keys?agent_id=${agentId}`);
 }
 
-export async function bindAgent(
-  sessionId: string,
+export async function createAgentKey(
   agentId: string,
-  permissions: Record<string, boolean> = {},
-): Promise<{ binding_id: string; agent_id: string }> {
-  return apiFetch<{ binding_id: string; agent_id: string }>(
-    `/sessions/${sessionId}/agents`,
-    {
-      method: "POST",
-      body: JSON.stringify({ agent_id: agentId, permissions }),
-    },
-  );
+  label?: string,
+): Promise<{ key_id: string; agent_id: string; api_key: string }> {
+  return apiFetch(`/api/v1/agents/keys`, {
+    method: "POST",
+    body: JSON.stringify({ agent_id: agentId, label }),
+  });
 }
 
-export async function revokeAgent(
-  sessionId: string,
-  agentId: string,
+export async function revokeAgentKey(
+  keyId: string,
 ): Promise<{ revoked: boolean }> {
   return apiFetch<{ revoked: boolean }>(
-    `/sessions/${sessionId}/agents/${agentId}`,
+    `/api/v1/agents/keys/${keyId}`,
     { method: "DELETE" },
   );
 }

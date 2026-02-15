@@ -1,25 +1,21 @@
 import { apiFetch } from "./client";
-import type { PerceptionEvent } from "./types";
+import type { VerificationEvent } from "./types";
 
 export async function getEvents(
-  sessionId: string,
+  taskId: string,
   limit = 50,
-  types?: string[],
-): Promise<{ events: PerceptionEvent[] }> {
+): Promise<{ events: VerificationEvent[] }> {
   const params = new URLSearchParams({ limit: String(limit) });
-  if (types && types.length > 0) {
-    params.set("types", types.join(","));
-  }
-  return apiFetch<{ events: PerceptionEvent[] }>(
-    `/sessions/${sessionId}/events?${params}`,
+  return apiFetch<{ events: VerificationEvent[] }>(
+    `/api/v1/tasks/${taskId}/events?${params}`,
   );
 }
 
 export async function getFrame(
-  sessionId: string,
+  taskId: string,
   eventId: string,
 ): Promise<{ event_id: string; frame_b64: string }> {
   return apiFetch<{ event_id: string; frame_b64: string }>(
-    `/sessions/${sessionId}/events/${eventId}/frame`,
+    `/api/v1/tasks/${taskId}/events/${eventId}/frame`,
   );
 }

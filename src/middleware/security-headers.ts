@@ -11,6 +11,6 @@ export function securityHeaders() {
     c.header("X-XSS-Protection", "0");
     c.header("Referrer-Policy", "strict-origin-when-cross-origin");
     c.header("Strict-Transport-Security", "max-age=31536000; includeSubDomains");
-    c.header("Permissions-Policy", "camera=(), microphone=(), geolocation=()");
+    c.header("Permissions-Policy", "camera=(self), microphone=(self), geolocation=()");
   };
 }

@@ -1,32 +1,29 @@
 import { Hono } from "hono";
-import type { SessionManager } from "../sessions/manager.js";
+import type { TaskManager } from "../tasks/manager.js";
 
-export function createEventRoutes(sessionManager: SessionManager): Hono {
+export function createEventRoutes(taskManager: TaskManager): Hono {
   const app = new Hono();
 
-  // GET /sessions/:id/events?limit=50&types=triggered,digest
+  // GET /api/v1/tasks/:id/events?limit=50
   app.get("/", (c) => {
-    const sessionId = c.req.param("id") as string;
-    const session = sessionManager.getSession(sessionId);
-    if (!session) return c.json({ error: "Session not found", code: "NOT_FOUND" }, 404);
+    const taskId = c.req.param("id") as string;
+    const task = taskManager.getTask(taskId);
+    if (!task) return c.json({ error: "Task not found", code: "NOT_FOUND" }, 404);
 
     const limit = Math.min(parseInt(c.req.query("limit") || "50", 10), 200);
-    const typesParam = c.req.query("types");
-    const types = typesParam ? typesParam.split(",") : null;
-
-    const events = sessionManager.getEvents(sessionId, limit, types);
+    const events = taskManager.getEvents(taskId, limit);
     return c.json({ events });
   });
 
-  // GET /sessions/:id/events/:eventId/frame
+  // GET /api/v1/tasks/:id/events/:eventId/frame
   app.get("/:eventId/frame", (c) => {
-    const sessionId = c.req.param("id") as string;
+    const taskId = c.req.param("id") as string;
     const eventId = c.req.param("eventId") as string;
 
-    const session = sessionManager.getSession(sessionId);
-    if (!session) return c.json({ error: "Session not found", code: "NOT_FOUND" }, 404);
+    const task = taskManager.getTask(taskId);
+    if (!task) return c.json({ error: "Task not found", code: "NOT_FOUND" }, 404);
 
-    const frame = sessionManager.getEventFrame(eventId);
+    const frame = taskManager.getEventFrame(eventId);
     if (!frame) return c.json({ error: "Frame not found", code: "NOT_FOUND" }, 404);
 
     return c.json({ event_id: eventId, frame_b64: frame });
