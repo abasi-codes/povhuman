@@ -1,13 +1,13 @@
 import type { McpToolDefinition } from "./types.js";
 
 /**
- * MCP tool definitions for ProofStream.
+ * MCP tool definitions for VerifyHuman.
  * Stub: returns tool schemas but handleToolCall returns "not connected" error.
  *
- * Real implementation will connect to a running ProofStream server.
+ * Real implementation will connect to a running VerifyHuman server.
  */
 
-export function getProofStreamTools(): McpToolDefinition[] {
+export function getVerifyHumanTools(): McpToolDefinition[] {
   return [
     {
       name: "create_verification_task",
@@ -91,7 +91,7 @@ export function handleToolCall(
   _input: Record<string, unknown>,
 ): { error: string } {
   return {
-    error: `ProofStream MCP server is not connected. Tool "${name}" cannot be executed. ` +
-      "Connect to a running ProofStream instance first.",
+    error: `VerifyHuman MCP server is not connected. Tool "${name}" cannot be executed. ` +
+      "Connect to a running VerifyHuman instance first.",
   };
 }

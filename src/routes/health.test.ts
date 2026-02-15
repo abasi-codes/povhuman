@@ -13,7 +13,7 @@ describe("health route", () => {
     const res = await app.request("/");
     const body = await res.json();
     expect(body.status).toBe("ok");
-    expect(body.service).toBe("proofstream");
+    expect(body.service).toBe("verifyhuman");
   });
 
   it("returns ISO timestamp", async () => {

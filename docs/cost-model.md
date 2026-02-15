@@ -25,7 +25,7 @@ All VLM costs are billed directly by Google via the agent's Gemini API key (BYOK
 
 | Component | Cost | Notes |
 |-----------|------|-------|
-| ProofStream server | ~$20-50/mo | Node.js on VPS or serverless |
+| VerifyHuman server | ~$20-50/mo | Node.js on VPS or serverless |
 | WebRTC relay (Janus) | ~$50-200/mo | Scales with concurrent streams |
 | Evidence redaction | ~$360/mo | GPU for face blur (shared) |
 | Database | ~$10-30/mo | SQLite or managed Postgres |

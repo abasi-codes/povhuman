@@ -30,7 +30,7 @@ export const config = {
   },
 
   database: {
-    path: optional("DATABASE_PATH", "./data/proofstream.db"),
+    path: optional("DATABASE_PATH", "./data/verifyhuman.db"),
   },
 
   redaction: {

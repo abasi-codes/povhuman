@@ -36,7 +36,7 @@ export function createAgentKeyRoutes(db: Database.Database): Hono {
 
     const { agent_id, label } = parsed.data;
     const keyId = nanoid(12);
-    const rawKey = `ps_${nanoid(32)}`;
+    const rawKey = `vh_${nanoid(32)}`;
     const keyHash = createHash("sha256").update(rawKey).digest("hex");
 
     insertKey.run(keyId, agent_id, keyHash, label || null);

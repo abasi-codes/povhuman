@@ -171,7 +171,7 @@ serve(
   (info) => {
     logger.info(
       { port: info.port, host: config.server.host },
-      "ProofStream server started",
+      "VerifyHuman server started",
     );
   },
 );

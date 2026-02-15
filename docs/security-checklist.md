@@ -12,7 +12,7 @@
 
 - [ ] Agent keys hashed (SHA-256) before storage — raw key shown only once
 - [ ] Key revocation available via `DELETE /api/v1/agents/keys/:keyId`
-- [ ] Keys prefixed with `ps_` for identification
+- [ ] Keys prefixed with `vh_` for identification
 - [ ] Revoked keys immediately rejected on subsequent requests
 
 ## Webhook Security

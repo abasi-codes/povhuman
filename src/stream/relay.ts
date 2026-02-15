@@ -17,7 +17,7 @@ export class StreamRelay {
   createSession(taskId: string): StreamSession {
     const session: StreamSession = {
       task_id: taskId,
-      rtsp_url: `rtsp://stream.proofstream.local/${taskId}`,
+      rtsp_url: `rtsp://stream.verifyhuman.local/${taskId}`,
       webrtc_offer_url: `/api/v1/stream/${taskId}/offer`,
       status: "pending",
       created_at: new Date().toISOString(),
@@ -46,8 +46,8 @@ export class StreamRelay {
 
     return {
       answer_sdp: "v=0\r\n" +
-        "o=proofstream 0 0 IN IP4 0.0.0.0\r\n" +
-        "s=ProofStream Stub\r\n" +
+        "o=verifyhuman 0 0 IN IP4 0.0.0.0\r\n" +
+        "s=VerifyHuman Stub\r\n" +
         "t=0 0\r\n",
       status: "stub_connected",
     };

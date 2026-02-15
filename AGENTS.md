@@ -1,4 +1,4 @@
-# AGENTS.md — ProofStream
+# AGENTS.md — VerifyHuman
 
 ## Confirmation Rules
 

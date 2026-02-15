@@ -35,7 +35,7 @@ export function Header() {
           <span className="eye-logo-inner">{"\uD83D\uDCF9"}</span>
         </div>
         <div>
-          <div className="brand-name">ProofStream</div>
+          <div className="brand-name">VerifyHuman</div>
           <div className="brand-sub">Livestream Verification</div>
         </div>
       </div>

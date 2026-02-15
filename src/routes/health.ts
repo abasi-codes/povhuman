@@ -6,7 +6,7 @@ export function createHealthRoutes(): Hono {
   app.get("/", (c) => {
     return c.json({
       status: "ok",
-      service: "proofstream",
+      service: "verifyhuman",
       version: "0.2.0",
       timestamp: new Date().toISOString(),
     });

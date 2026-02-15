@@ -1,4 +1,4 @@
-# ProofStream
+# VerifyHuman
 
 Livestream verification for human task completion. AI agents verify real-world work via live video + [Trio](https://docs.machinefi.com) VLM.
 
@@ -11,7 +11,7 @@ AI Agent creates task (checkpoints: location + object + document)
   -> Human claims task, gets stream URL
     -> Human streams from phone while working
       -> Trio watches stream, checks each checkpoint
-        -> ProofStream delivers verification events to agent
+        -> VerifyHuman delivers verification events to agent
           -> All checkpoints pass → task_completed + SHA-256 hash
 ```
 
@@ -81,7 +81,7 @@ curl -X POST http://localhost:3000/api/v1/tasks/TASK_ID/stop
 
 ```bash
 curl http://localhost:3000/health
-# { "status": "ok", "service": "proofstream", "version": "0.2.0" }
+# { "status": "ok", "service": "verifyhuman", "version": "0.2.0" }
 ```
 
 ## Configuration

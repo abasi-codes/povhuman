@@ -23,7 +23,7 @@ export class AgentDelivery {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
-          "X-ProofStream-Event": event.event_type,
+          "X-VerifyHuman-Event": event.event_type,
         },
         body: JSON.stringify({
           event_id: event.event_id,

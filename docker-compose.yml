@@ -7,7 +7,7 @@ services:
       - .env
     environment:
       - NODE_ENV=production
-      - DATABASE_PATH=/app/data/proofstream.db
+      - DATABASE_PATH=/app/data/verifyhuman.db
     volumes:
       - ./data:/app/data
     restart: unless-stopped

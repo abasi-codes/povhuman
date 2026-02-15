@@ -1,5 +1,5 @@
 {
-  "name": "proofstream",
+  "name": "verifyhuman",
   "version": "0.2.0",
   "description": "Livestream verification for human task completion — AI agents verify real-world work via live video + Trio VLM",
   "type": "module",

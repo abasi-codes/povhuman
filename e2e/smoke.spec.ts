@@ -7,7 +7,7 @@ test.describe("Dashboard Smoke Tests", () => {
 
   test("loads the dashboard with header", async ({ page }) => {
     await expect(page.locator(".topbar")).toBeVisible();
-    await expect(page.locator(".brand-name")).toContainText("ProofStream");
+    await expect(page.locator(".brand-name")).toContainText("VerifyHuman");
   });
 
   test("shows three-column layout", async ({ page }) => {
@@ -33,7 +33,7 @@ test.describe("Dashboard Smoke Tests", () => {
     expect(response.ok()).toBe(true);
     const body = await response.json();
     expect(body.status).toBe("ok");
-    expect(body.service).toBe("proofstream");
+    expect(body.service).toBe("verifyhuman");
   });
 
   test("metrics endpoint returns prometheus format", async ({ request }) => {

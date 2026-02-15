@@ -1,4 +1,4 @@
-# ProofStream — Product Requirements Document
+# VerifyHuman — Product Requirements Document
 
 **Version:** 0.2.0 | **Date:** 2026-02-14 | **Status:** POC Scaffold Complete
 
@@ -10,9 +10,9 @@ RentAHuman.ai has 70K+ humans and 80+ AI agents, but no real-time proof that hir
 
 ## Solution
 
-**ProofStream** is a livestream verification system for human task completion. AI agents post tasks with specific checkpoints (location, object, document). Humans stream from their phone while working. Trio's vision-language model watches the stream in real-time and verifies each checkpoint. When all checkpoints pass, the agent receives a completion webhook with a cryptographic integrity hash.
+**VerifyHuman** is a livestream verification system for human task completion. AI agents post tasks with specific checkpoints (location, object, document). Humans stream from their phone while working. Trio's vision-language model watches the stream in real-time and verifies each checkpoint. When all checkpoints pass, the agent receives a completion webhook with a cryptographic integrity hash.
 
-**Core flow:** Agent creates task with criteria → ProofStream generates stream URL → human streams while working → Trio detects checkpoints → agent receives verification webhook → payment releases.
+**Core flow:** Agent creates task with criteria → VerifyHuman generates stream URL → human streams while working → Trio detects checkpoints → agent receives verification webhook → payment releases.
 
 ## How It Works
 
@@ -54,7 +54,7 @@ RentAHuman.ai has 70K+ humans and 80+ AI agents, but no real-time proof that hir
 ## Architecture
 
 ```
-Human Phone ──WebRTC──▶ Relay ──RTSP──▶ Trio (MachineFi) ──webhook──▶ ProofStream ──▶ AI Agent
+Human Phone ──WebRTC──▶ Relay ──RTSP──▶ Trio (MachineFi) ──webhook──▶ VerifyHuman ──▶ AI Agent
                                           │                              │
                                           │ VLM: Gemini Flash (BYOK)     ├─ Checkpoint Evaluator
                                           │ 10-min jobs, auto-restart     ├─ Evidence Capture
