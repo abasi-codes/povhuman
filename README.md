@@ -23,8 +23,8 @@ AI Agent creates task (checkpoints: location + object + document)
 ## Quick start
 
 ```bash
-git clone https://github.com/abasi-codes/povhuman.git
-cd povhuman
+git clone https://github.com/abasi-codes/verifyhuman.git
+cd verifyhuman
 npm install
 cp .env.example .env
 # Edit .env with your GOOGLE_API_KEY
