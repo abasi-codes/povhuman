@@ -34,38 +34,37 @@ export class ErrorBoundary extends React.Component<Props, State> {
             justifyContent: "center",
             minHeight: "100vh",
             padding: "2rem",
-            fontFamily: "var(--f, 'Nunito', sans-serif)",
-            color: "var(--text, #1a1714)",
-            background: "var(--bg, #f6f4f0)",
+            fontFamily: "var(--fm, 'IBM Plex Mono', monospace)",
+            color: "#e8eaed",
+            background: "#0a0c0f",
           }}
         >
           <div
             style={{
-              background: "var(--white, #fff)",
-              borderRadius: "16px",
+              background: "#12151a",
+              borderRadius: "6px",
               padding: "2.5rem",
               maxWidth: "480px",
               textAlign: "center",
-              boxShadow: "0 1px 3px rgba(0,0,0,0.05), 0 2px 8px rgba(0,0,0,0.04)",
+              border: "1px solid #2a2f38",
             }}
           >
-            <div style={{ fontSize: "48px", marginBottom: "1rem" }}>
-              {"\uD83D\uDC41\uFE0F"}
-            </div>
             <h2
               style={{
-                fontFamily: "var(--fd, 'Fraunces', serif)",
+                fontFamily: "var(--fd, 'Oxanium', sans-serif)",
                 fontWeight: 700,
-                fontSize: "20px",
+                fontSize: "18px",
                 marginBottom: "0.5rem",
+                letterSpacing: "0.06em",
+                textTransform: "uppercase",
               }}
             >
               Something went wrong
             </h2>
             <p
               style={{
-                color: "var(--text2, #6b635a)",
-                fontSize: "14px",
+                color: "#9ca3af",
+                fontSize: "13px",
                 marginBottom: "1.5rem",
                 lineHeight: 1.5,
               }}
@@ -76,22 +75,23 @@ export class ErrorBoundary extends React.Component<Props, State> {
             {this.state.error && (
               <pre
                 style={{
-                  background: "var(--tint, #f0ede8)",
-                  borderRadius: "8px",
+                  background: "#181c22",
+                  borderRadius: "4px",
                   padding: "12px",
-                  fontSize: "12px",
+                  fontSize: "11px",
                   textAlign: "left",
                   overflow: "auto",
                   maxHeight: "120px",
                   marginBottom: "1.5rem",
-                  color: "var(--red, #dc2626)",
+                  color: "#ef4444",
+                  border: "1px solid #2a2f38",
                 }}
               >
                 {this.state.error.message}
               </pre>
             )}
             <button
-              className="btn btn-blue"
+              className="btn btn-amber"
               onClick={() => window.location.reload()}
             >
               Refresh Page

@@ -19,32 +19,33 @@ export function Header() {
   }, []);
 
   const status = task?.status ?? (taskId ? "pending" : "idle");
-  const badgeClass =
-    status === "streaming" || status === "verifying" ? "live" :
-    status === "completed" ? "stopped" :
-    status === "cancelled" ? "stopped" :
+  const chipClass =
+    status === "verifying" ? "verifying" :
+    status === "streaming" ? "streaming" :
+    status === "completed" ? "completed" :
+    status === "pending" ? "pending" :
     "idle";
   const label = taskId
-    ? `Task ${status.charAt(0).toUpperCase() + status.slice(1)}`
-    : "No Task";
+    ? status.charAt(0).toUpperCase() + status.slice(1)
+    : "Idle";
 
   return (
     <header className="topbar">
       <div className="topbar-brand">
-        <div className="eye-logo">
-          <span className="eye-logo-inner">{"\uD83D\uDCF9"}</span>
-        </div>
+        <div className="brand-mark" />
         <div>
-          <div className="brand-name">VerifyHuman</div>
+          <div className="brand-name">
+            Verify<span className="brand-sep">/</span>Human
+          </div>
           <div className="brand-sub">Livestream Verification</div>
         </div>
       </div>
-      <div className="topbar-status">
-        <div className={`chip-live ${badgeClass}`}>
+      <div className="topbar-right">
+        <div className={`status-chip ${chipClass}`}>
           <div className="status-dot" />
           {label}
         </div>
-        <div className="topbar-time">{clock}</div>
+        <div className="topbar-clock">{clock}</div>
       </div>
     </header>
   );

@@ -31,7 +31,7 @@ import type { AnyWebhookPayload, MonitorTriggeredPayload, JobStatusPayload } fro
 // --- Initialize dependencies ---
 
 const db = initDatabase(config.database.path);
-const trio = new TrioClient(config.trio.baseUrl, config.googleApiKey);
+const trio = new TrioClient(config.trio.baseUrl, config.trioApiKey);
 const streamRelay = new StreamRelay();
 const agentDelivery = new AgentDelivery();
 const evidenceCapture = new EvidenceCaptureService(

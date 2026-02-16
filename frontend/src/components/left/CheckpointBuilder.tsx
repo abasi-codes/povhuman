@@ -2,9 +2,9 @@ import { useState } from "react";
 import { useTaskContext } from "../../context/TaskContext";
 
 const CHECKPOINT_TYPES = [
-  { value: "location", label: "Location", icon: "📍" },
-  { value: "object", label: "Object", icon: "📦" },
-  { value: "document", label: "Document", icon: "📄" },
+  { value: "location", label: "Location", badge: "LOC" },
+  { value: "object", label: "Object", badge: "OBJ" },
+  { value: "document", label: "Document", badge: "DOC" },
 ];
 
 export function CheckpointBuilder() {
@@ -26,49 +26,66 @@ export function CheckpointBuilder() {
   };
 
   return (
-    <div className="card">
-      <div className="card-title">Checkpoints</div>
-
-      <div className="checkpoint-list">
-        {checkpointInputs.map((cp, i) => {
-          const typeInfo = CHECKPOINT_TYPES.find((t) => t.value === cp.type);
-          return (
-            <div key={i} className="checkpoint-item">
-              <span className="checkpoint-icon">{typeInfo?.icon || "?"}</span>
-              <div className="checkpoint-detail">
-                <div className="checkpoint-type">{typeInfo?.label || cp.type}</div>
-                <div className="checkpoint-target">{cp.target}</div>
-              </div>
-              <button className="checkpoint-remove" onClick={() => removeCheckpoint(i)}>
-                x
-              </button>
-            </div>
-          );
-        })}
-        {checkpointInputs.length === 0 && (
-          <div style={{ color: "var(--text3)", fontSize: 13, textAlign: "center", padding: 14 }}>
-            Add at least one checkpoint
-          </div>
-        )}
+    <div className="panel">
+      <div className="panel-head">
+        <div className="panel-label">Checkpoints</div>
       </div>
 
-      <div className="checkpoint-add">
-        <select value={newType} onChange={(e) => setNewType(e.target.value)}>
-          {CHECKPOINT_TYPES.map((t) => (
-            <option key={t.value} value={t.value}>
-              {t.icon} {t.label}
-            </option>
-          ))}
-        </select>
-        <input
-          type="text"
-          value={newTarget}
-          onChange={(e) => setNewTarget(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="What to verify..."
-        />
-        <button className="btn" onClick={handleAdd} disabled={!newTarget.trim()}>
-          Add
+      {checkpointInputs.length > 0 && (
+        <div className="cp-list">
+          {checkpointInputs.map((cp, i) => {
+            const typeInfo = CHECKPOINT_TYPES.find((t) => t.value === cp.type);
+            return (
+              <div key={i} className="cp-item">
+                <span className={`cp-type-badge ${cp.type}`}>
+                  {typeInfo?.badge || cp.type.slice(0, 3).toUpperCase()}
+                </span>
+                <span className="cp-target">{cp.target}</span>
+                <button className="cp-remove" onClick={() => removeCheckpoint(i)}>
+                  &times;
+                </button>
+              </div>
+            );
+          })}
+        </div>
+      )}
+
+      {checkpointInputs.length === 0 && (
+        <div style={{ color: "var(--text4)", fontSize: 11, textAlign: "center", padding: 14, marginBottom: 12 }}>
+          Add at least one checkpoint
+        </div>
+      )}
+
+      <div className="row">
+        <div className="field">
+          <select
+            className="field-input"
+            value={newType}
+            onChange={(e) => setNewType(e.target.value)}
+          >
+            {CHECKPOINT_TYPES.map((t) => (
+              <option key={t.value} value={t.value}>
+                {t.label}
+              </option>
+            ))}
+          </select>
+        </div>
+        <div className="field" style={{ flex: 2 }}>
+          <input
+            className="field-input"
+            type="text"
+            value={newTarget}
+            onChange={(e) => setNewTarget(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Target to verify..."
+          />
+        </div>
+        <button
+          className="btn btn-amber btn-sm"
+          onClick={handleAdd}
+          disabled={!newTarget.trim()}
+        >
+          + Add
         </button>
       </div>
     </div>

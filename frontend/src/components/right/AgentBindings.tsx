@@ -39,12 +39,15 @@ export function AgentBindings() {
   };
 
   return (
-    <div className="card">
-      <div className="card-title">Agent API Keys</div>
+    <div className="panel">
+      <div className="panel-head">
+        <div className="panel-label">Agent Keys</div>
+      </div>
 
-      <div className="form-group">
-        <label className="form-label">Agent ID</label>
+      <div className="field">
+        <div className="field-label">Agent ID</div>
         <input
+          className="field-input"
           type="text"
           value={newAgentId}
           onChange={(e) => setNewAgentId(e.target.value)}
@@ -52,46 +55,53 @@ export function AgentBindings() {
         />
       </div>
 
-      <div className="agent-list">
-        {keys.map((k) => (
-          <div key={k.key_id} className="agent">
-            <div className="agent-header">
-              <div className="agent-name">{k.label || k.key_id}</div>
-              <button className="agent-revoke" onClick={() => handleRevoke(k.key_id)}>
+      {keys.length > 0 && (
+        <div className="key-list">
+          {keys.map((k) => (
+            <div key={k.key_id} className="key-item">
+              <div className="key-info">
+                <div className="key-agent">{k.label || k.key_id}</div>
+                <div className="key-hash">vh_{k.key_id.slice(0, 12)}...</div>
+              </div>
+              <button className="key-revoke" onClick={() => handleRevoke(k.key_id)}>
                 Revoke
               </button>
             </div>
-            <div className="agent-perms">
-              <span className="pp y">Created: {k.created_at}</span>
-            </div>
-          </div>
-        ))}
-        {keys.length === 0 && newAgentId.trim() && (
-          <div style={{ color: "var(--text3)", fontSize: 13, textAlign: "center", padding: 14 }}>
-            No active keys
-          </div>
-        )}
-      </div>
-
-      {lastKey && (
-        <div className="key-display">
-          <div style={{ color: "var(--amber)", fontSize: 12, marginBottom: 4 }}>
-            Save this key — it won't be shown again:
-          </div>
-          <code className="key-value">{lastKey}</code>
+          ))}
         </div>
       )}
 
-      <div className="agent-bind-row">
+      {keys.length === 0 && newAgentId.trim() && (
+        <div style={{ color: "var(--text4)", fontSize: 11, textAlign: "center", padding: 14, marginBottom: 12 }}>
+          No active keys
+        </div>
+      )}
+
+      {lastKey && (
+        <div className="key-display">
+          <div style={{ fontSize: 10, color: "var(--amber)", marginBottom: 4, fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" as const }}>
+            Save this key — shown only once
+          </div>
+          <code>{lastKey}</code>
+        </div>
+      )}
+
+      <div className="row" style={{ gap: 6 }}>
         <input
+          className="field-input"
           type="text"
           value={newLabel}
           onChange={(e) => setNewLabel(e.target.value)}
-          placeholder="Key label..."
+          placeholder="label"
           disabled={loading}
+          style={{ fontSize: 11, padding: "6px 8px" }}
         />
-        <button className="btn" onClick={handleCreate} disabled={loading || !newAgentId.trim()}>
-          {loading ? <span className="spinner" /> : "Create Key"}
+        <button
+          className="btn btn-sm"
+          onClick={handleCreate}
+          disabled={loading || !newAgentId.trim()}
+        >
+          {loading ? <span className="spinner" /> : "Create"}
         </button>
       </div>
     </div>

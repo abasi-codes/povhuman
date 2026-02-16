@@ -6,7 +6,8 @@ export default defineConfig({
   server: {
     port: 5999,
     proxy: {
-      "/sessions": "http://localhost:3000",
+      "/api": "http://localhost:3000",
+      "/metrics": "http://localhost:3000",
       "/webhooks": "http://localhost:3000",
       "/health": "http://localhost:3000",
     },

@@ -1,27 +1,46 @@
+import { useState } from "react";
+
 export function PrivacyPipeline() {
-  const steps = [
-    { name: "Face blurring", active: true },
-    { name: "Text redaction", active: false },
-    { name: "Evidence capture", active: true },
-    { name: "Fail-closed mode", status: "warn" as const },
-  ];
+  const [blurFaces, setBlurFaces] = useState(true);
+  const [blurText, setBlurText] = useState(false);
+  const [failClosed, setFailClosed] = useState(true);
 
   return (
-    <div className="card">
-      <div className="card-title">Evidence Pipeline</div>
-      <div className="pipeline-list">
-        {steps.map((step) => (
-          <div key={step.name} className="priv-row">
-            <span>{step.name}</span>
-            {step.status === "warn" ? (
-              <span className="priv-b warn">Enforced</span>
-            ) : (
-              <span className={`priv-b ${step.active ? "active" : "idle"}`}>
-                {step.active ? "Active" : "Idle"}
-              </span>
-            )}
-          </div>
-        ))}
+    <div className="panel">
+      <div className="panel-head">
+        <div className="panel-label">Evidence Pipeline</div>
+      </div>
+
+      <div className="priv-pipeline">
+        <span className="priv-step active">Capture</span>
+        <span className="priv-arrow">&rarr;</span>
+        <span className="priv-step active">Redact</span>
+        <span className="priv-arrow">&rarr;</span>
+        <span className="priv-step active">Store</span>
+      </div>
+
+      <div className="toggle-group">
+        <div className="toggle-row">
+          <span>Blur faces</span>
+          <button
+            className={`tg-track ${blurFaces ? "on" : ""}`}
+            onClick={() => setBlurFaces(!blurFaces)}
+          />
+        </div>
+        <div className="toggle-row">
+          <span>Blur text</span>
+          <button
+            className={`tg-track ${blurText ? "on" : ""}`}
+            onClick={() => setBlurText(!blurText)}
+          />
+        </div>
+        <div className="toggle-row">
+          <span>Fail-closed mode</span>
+          <button
+            className={`tg-track ${failClosed ? "on" : ""}`}
+            onClick={() => setFailClosed(!failClosed)}
+          />
+        </div>
       </div>
     </div>
   );

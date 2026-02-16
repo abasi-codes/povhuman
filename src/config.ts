@@ -11,7 +11,7 @@ function optional(key: string, fallback: string): string {
 }
 
 export const config = {
-  googleApiKey: optional("GOOGLE_API_KEY", ""),
+  trioApiKey: process.env.TRIO_API_KEY || process.env.GOOGLE_API_KEY || "",
 
   trio: {
     baseUrl: optional("TRIO_BASE_URL", "https://trio.machinefi.com"),

@@ -6,21 +6,23 @@ export function TaskCreator() {
   if (taskId) return null;
 
   return (
-    <div className="card">
-      <div className="card-title">Create Verification Task</div>
-      <div className="form-group">
-        <label className="form-label">Task Description</label>
+    <div className="panel">
+      <div className="panel-head">
+        <div className="panel-label">Task Creator</div>
+      </div>
+      <div className="field">
+        <div className="field-label">Description</div>
         <textarea
-          className="form-textarea"
+          className="field-input"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Describe what the human should do..."
-          rows={3}
+          placeholder="What should the human do?"
         />
       </div>
-      <div className="form-group">
-        <label className="form-label">Webhook URL</label>
+      <div className="field">
+        <div className="field-label">Webhook URL</div>
         <input
+          className="field-input"
           type="text"
           value={webhookUrl}
           onChange={(e) => setWebhookUrl(e.target.value)}

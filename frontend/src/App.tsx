@@ -4,8 +4,10 @@ import { TaskProvider } from "./context/TaskContext";
 import { Header } from "./components/Header";
 import { TaskCreator } from "./components/left/TaskCreator";
 import { CheckpointBuilder } from "./components/left/CheckpointBuilder";
+import { CheckpointProgress } from "./components/left/CheckpointProgress";
 import { TaskControl } from "./components/left/TaskControl";
 import { StatsCards } from "./components/center/StatsCards";
+import { TrioJobs } from "./components/center/TrioJobs";
 import { EventFeed } from "./components/center/EventFeed";
 import { EvidenceViewer } from "./components/center/EvidenceViewer";
 import { AgentBindings } from "./components/right/AgentBindings";
@@ -20,18 +22,19 @@ export default function App() {
           <Header />
           <main className="page">
             {/* Left Column */}
-            <div className="left">
+            <div className="col">
               <TaskCreator />
               <CheckpointBuilder />
+              <CheckpointProgress />
               <TaskControl />
             </div>
 
             {/* Center Column */}
-            <div className="center">
+            <div className="col">
               <StatsCards />
-              <div className="card" style={{ flex: 1 }}>
-                <div className="card-title">Verification Feed</div>
-                <div className="monitor-split">
+              <TrioJobs />
+              <div className="panel" style={{ padding: 0 }}>
+                <div className="monitor-layout">
                   <EventFeed />
                   <EvidenceViewer />
                 </div>
@@ -39,7 +42,7 @@ export default function App() {
             </div>
 
             {/* Right Column */}
-            <div className="right">
+            <div className="col">
               <AgentBindings />
               <PrivacyPipeline />
               <ResourceGauges />
