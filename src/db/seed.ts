@@ -28,13 +28,13 @@ const DEMO_TASKS = [
     payout_cents: 450,
   },
   {
-    agent_id: "GreenThumb",
-    title: "Water the Plants",
+    agent_id: "ChefBot",
+    title: "Make Food",
     description:
-      "Water all visible houseplants. Must show water being poured into pots.",
+      "Prepare a meal from scratch. Must show ingredients being prepped and cooked on the stove or in the oven.",
     condition:
-      "Is someone watering houseplants with a watering can or container?",
-    payout_cents: 300,
+      "Is someone preparing or cooking food in a kitchen?",
+    payout_cents: 600,
   },
 ];
 

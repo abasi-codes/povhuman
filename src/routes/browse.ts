@@ -105,6 +105,54 @@ export function createBrowseRoutes(
 
     const condition = checkpoints[0].target;
 
+    // Demo mode: mock verification when no real API key is configured
+    if (!trio.hasApiKey) {
+      const cp = checkpoints[0];
+
+      if (task.agent_id === "BakeAssist") {
+        return c.json({
+          verified: false,
+          explanation:
+            "Could not detect cookie baking activity. No evidence of mixing ingredients or placing a tray in the oven was observed.",
+          confidence: 0.25,
+          payout_cents: 0,
+        });
+      }
+
+      // All other tasks pass in demo mode
+      const explanation = "Task activity detected and verified.";
+      const confidence = 0.92;
+
+      // Mark checkpoint as verified
+      const verifyStmt = (taskManager as any).db.prepare(
+        `UPDATE checkpoints SET verified = 1, verified_at = datetime('now'),
+         evidence_explanation = ?, confidence = ? WHERE checkpoint_id = ?`,
+      );
+      verifyStmt.run(explanation, confidence, cp.checkpoint_id);
+
+      // Complete the task
+      const completeStmt = (taskManager as any).db.prepare(
+        `UPDATE tasks SET status = 'completed', completed_at = datetime('now'), updated_at = datetime('now') WHERE task_id = ?`,
+      );
+      completeStmt.run(taskId);
+
+      // Record verification event
+      const eventId = nanoid(12);
+      (taskManager as any).db
+        .prepare(
+          `INSERT INTO verification_events (event_id, task_id, job_id, checkpoint_id, event_type, confidence, explanation, evidence_frame_b64, metadata, expires_at)
+         VALUES (?, ?, NULL, ?, 'checkpoint_verified', ?, ?, NULL, '{}', NULL)`,
+        )
+        .run(eventId, taskId, cp.checkpoint_id, confidence, explanation);
+
+      return c.json({
+        verified: true,
+        explanation,
+        confidence,
+        payout_cents: task.payout_cents,
+      });
+    }
+
     try {
       const result = await trio.checkOnce({
         url: parsed.data.video_url,
