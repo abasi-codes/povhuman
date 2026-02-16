@@ -7,6 +7,8 @@ import { CHECKPOINT_TEMPLATES } from "../checkpoints/types.js";
 
 const CreateTaskSchema = z.object({
   description: z.string().min(1, "description is required"),
+  title: z.string().optional(),
+  payout_cents: z.number().int().min(0).optional(),
   webhook_url: z.string().min(1, "webhook_url is required").url("webhook_url must be a valid URL"),
   checkpoints: z.array(z.object({
     type: z.enum(["location", "object", "document", "person", "action", "duration", "text"]),
@@ -58,6 +60,8 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
     const taskId = taskManager.createTask({
       agent_id: "api", // TODO: extract from auth
       description: body.description,
+      title: body.title,
+      payout_cents: body.payout_cents,
       webhook_url: body.webhook_url,
       checkpoints: body.checkpoints,
       redaction_policy: body.redaction_policy,
@@ -94,6 +98,8 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
       task_id: task.task_id,
       agent_id: task.agent_id,
       description: task.description,
+      title: task.title,
+      payout_cents: task.payout_cents,
       status: task.status,
       stream_url: task.stream_url,
       human_id: task.human_id,

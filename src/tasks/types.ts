@@ -30,6 +30,8 @@ export interface CheckpointConfig {
 export interface TaskConfig {
   agent_id: string;
   description: string;
+  title?: string;
+  payout_cents?: number;
   webhook_url: string;
   checkpoints: CheckpointConfig[];
   redaction_policy?: RedactionPolicy;

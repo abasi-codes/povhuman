@@ -1,0 +1,1331 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Dashboard | VerifyHuman</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Mono:wght@400;700&family=Syne:wght@400;500;600;700;800&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-primary: #0a0a0f;
+            --bg-secondary: #12121a;
+            --bg-tertiary: #1a1a25;
+            --bg-card: rgba(26, 26, 37, 0.6);
+            --accent-cyan: #00f5d4;
+            --accent-purple: #9b5de5;
+            --accent-pink: #f72585;
+            --accent-orange: #ff6b35;
+            --accent-amber: #f59e0b;
+            --accent-red: #ef4444;
+            --accent-green: #22c55e;
+            --text-primary: #ffffff;
+            --text-secondary: #a0a0b0;
+            --text-muted: #606070;
+            --border-subtle: rgba(255, 255, 255, 0.06);
+            --border-glow: rgba(0, 245, 212, 0.3);
+            --gradient-card: linear-gradient(145deg, rgba(155, 93, 229, 0.08) 0%, rgba(0, 245, 212, 0.05) 100%);
+            --gradient-accent: linear-gradient(90deg, #00f5d4 0%, #9b5de5 50%, #f72585 100%);
+            --shadow-glow: 0 0 60px rgba(0, 245, 212, 0.15);
+            --font-display: 'Syne', sans-serif;
+            --font-mono: 'Space Mono', monospace;
+            --font-body: 'DM Sans', sans-serif;
+            --topbar-h: 64px;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+
+        body {
+            font-family: var(--font-body);
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.6;
+            overflow-x: hidden;
+            min-height: 100vh;
+        }
+
+        /* Grid BG */
+        .grid-bg {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            background-image:
+                linear-gradient(rgba(0, 245, 212, 0.015) 1px, transparent 1px),
+                linear-gradient(90deg, rgba(0, 245, 212, 0.015) 1px, transparent 1px);
+            background-size: 60px 60px;
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* ─── TOPBAR ─── */
+        .topbar {
+            position: fixed;
+            top: 0; left: 0; right: 0;
+            height: var(--topbar-h);
+            z-index: 100;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 0 2rem;
+            background: rgba(10, 10, 15, 0.9);
+            backdrop-filter: blur(20px);
+            border-bottom: 1px solid var(--border-subtle);
+        }
+
+        .topbar-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .logo {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 1.25rem;
+            letter-spacing: -0.02em;
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            text-decoration: none;
+            color: var(--text-primary);
+        }
+        .logo-icon {
+            width: 28px; height: 28px;
+            border: 2px solid var(--accent-amber);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            position: relative;
+            flex-shrink: 0;
+        }
+        .logo-icon::before {
+            content: '';
+            width: 8px; height: 8px;
+            background: var(--accent-amber);
+            border-radius: 50%;
+            animation: iris-pulse 3s ease-in-out infinite;
+        }
+        .logo-icon::after {
+            content: '';
+            position: absolute;
+            inset: -4px;
+            border: 1px solid rgba(245,158,11,0.2);
+            border-radius: 50%;
+            animation: iris-ring 3s ease-in-out infinite;
+        }
+        @keyframes iris-pulse {
+            0%, 100% { transform: scale(1); opacity: 1; }
+            50% { transform: scale(0.7); opacity: 0.6; }
+        }
+        @keyframes iris-ring {
+            0%, 100% { transform: scale(1); opacity: 0.4; }
+            50% { transform: scale(1.15); opacity: 0; }
+        }
+        .logo-sep { color: var(--text-muted); margin: 0 1px; }
+
+        .topbar-divider {
+            width: 1px;
+            height: 24px;
+            background: var(--border-subtle);
+        }
+
+        /* ─── BREADCRUMB ─── */
+        .breadcrumb {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            letter-spacing: 0.05em;
+        }
+        .breadcrumb-step {
+            color: var(--text-muted);
+            transition: color 0.3s;
+        }
+        .breadcrumb-step.active {
+            color: var(--accent-cyan);
+        }
+        .breadcrumb-step.done {
+            color: var(--accent-green);
+        }
+        .breadcrumb-sep {
+            color: var(--text-muted);
+            opacity: 0.4;
+        }
+
+        /* ─── BUTTONS ─── */
+        .btn {
+            padding: 0.65rem 1.25rem;
+            border-radius: 10px;
+            font-family: var(--font-body);
+            font-weight: 600;
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.5rem;
+            border: none;
+        }
+        .btn-primary {
+            background: var(--accent-cyan);
+            color: var(--bg-primary);
+        }
+        .btn-primary:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 25px rgba(0, 245, 212, 0.3);
+        }
+        .btn-primary:active {
+            transform: translateY(0);
+        }
+        .btn-ghost {
+            background: transparent;
+            border: 1px solid var(--border-subtle);
+            color: var(--text-primary);
+        }
+        .btn-ghost:hover {
+            border-color: var(--accent-cyan);
+            background: rgba(0, 245, 212, 0.05);
+        }
+        .btn-large {
+            padding: 0.85rem 2rem;
+            font-size: 0.95rem;
+            border-radius: 12px;
+        }
+        .btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        /* ─── MAIN AREA ─── */
+        .main {
+            padding-top: calc(var(--topbar-h) + 2rem);
+            padding-bottom: 3rem;
+            max-width: 900px;
+            margin: 0 auto;
+            padding-left: 2rem;
+            padding-right: 2rem;
+            position: relative;
+            z-index: 1;
+            min-height: 100vh;
+        }
+
+        .step { display: none; }
+        .step.active { display: block; animation: fadeIn 0.4s ease-out; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(12px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        /* ─── STEP 1: TASK BOARD ─── */
+        .step-header {
+            margin-bottom: 2rem;
+        }
+        .step-header h1 {
+            font-family: var(--font-display);
+            font-size: 1.8rem;
+            font-weight: 800;
+            margin-bottom: 0.3rem;
+        }
+        .step-header p {
+            color: var(--text-secondary);
+            font-size: 0.95rem;
+        }
+
+        .task-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1rem;
+        }
+
+        .task-card {
+            background: var(--gradient-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 16px;
+            padding: 1.5rem;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+            overflow: hidden;
+        }
+        .task-card::before {
+            content: '';
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 2px;
+            background: var(--gradient-accent);
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        .task-card:hover {
+            border-color: rgba(0, 245, 212, 0.2);
+            transform: translateY(-3px);
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.3);
+        }
+        .task-card:hover::before {
+            opacity: 1;
+        }
+
+        .task-card-agent {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.2rem 0.6rem;
+            background: rgba(155, 93, 229, 0.15);
+            border: 1px solid rgba(155, 93, 229, 0.2);
+            border-radius: 100px;
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            font-weight: 700;
+            color: var(--accent-purple);
+            margin-bottom: 0.75rem;
+        }
+
+        .task-card-title {
+            font-family: var(--font-display);
+            font-size: 1.15rem;
+            font-weight: 700;
+            margin-bottom: 0.4rem;
+        }
+
+        .task-card-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            line-height: 1.5;
+            margin-bottom: 1rem;
+            display: -webkit-box;
+            -webkit-line-clamp: 2;
+            -webkit-box-orient: vertical;
+            overflow: hidden;
+        }
+
+        .task-card-footer {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .task-card-payout {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 800;
+            color: var(--accent-green);
+        }
+
+        .task-card-arrow {
+            width: 32px; height: 32px;
+            border-radius: 50%;
+            border: 1px solid var(--border-subtle);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--text-muted);
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+        .task-card:hover .task-card-arrow {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+            background: rgba(0, 245, 212, 0.08);
+        }
+
+        /* ─── STEP 2: TASK DETAIL ─── */
+        .detail-card {
+            background: var(--gradient-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            overflow: hidden;
+        }
+        .detail-card-top {
+            padding: 2rem 2rem 0;
+        }
+        .detail-agent-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.35rem;
+            padding: 0.25rem 0.7rem;
+            background: rgba(155, 93, 229, 0.15);
+            border: 1px solid rgba(155, 93, 229, 0.2);
+            border-radius: 100px;
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            font-weight: 700;
+            color: var(--accent-purple);
+            margin-bottom: 1rem;
+        }
+        .detail-title {
+            font-family: var(--font-display);
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+        }
+        .detail-desc {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            margin-bottom: 1.5rem;
+        }
+
+        .detail-info-row {
+            display: flex;
+            gap: 2rem;
+            padding: 1.25rem 2rem;
+            border-top: 1px solid var(--border-subtle);
+            border-bottom: 1px solid var(--border-subtle);
+            background: rgba(0, 0, 0, 0.15);
+        }
+        .detail-info-item {
+            display: flex;
+            flex-direction: column;
+            gap: 0.2rem;
+        }
+        .detail-info-label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .detail-info-value {
+            font-weight: 600;
+            font-size: 0.95rem;
+        }
+        .detail-info-value.payout {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 1.2rem;
+            color: var(--accent-green);
+        }
+
+        .detail-condition {
+            padding: 1.5rem 2rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 0.75rem;
+        }
+        .detail-condition-icon {
+            width: 36px; height: 36px;
+            border-radius: 10px;
+            background: rgba(0, 245, 212, 0.1);
+            border: 1px solid rgba(0, 245, 212, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: var(--accent-cyan);
+            font-size: 1rem;
+        }
+        .detail-condition-text {
+            flex: 1;
+        }
+        .detail-condition-text .label {
+            font-family: var(--font-mono);
+            font-size: 0.65rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 0.25rem;
+        }
+        .detail-condition-text .value {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            font-style: italic;
+        }
+
+        .detail-actions {
+            padding: 1.5rem 2rem;
+            display: flex;
+            gap: 0.75rem;
+        }
+
+        /* ─── STEP 3: SUBMIT STREAM ─── */
+        .stream-form {
+            background: var(--gradient-card);
+            border: 1px solid var(--border-subtle);
+            border-radius: 20px;
+            padding: 2.5rem;
+        }
+        .stream-form-icon {
+            width: 56px; height: 56px;
+            border-radius: 16px;
+            background: rgba(239, 68, 68, 0.1);
+            border: 1px solid rgba(239, 68, 68, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 1.5rem;
+            margin-bottom: 1.25rem;
+        }
+        .stream-form h2 {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .stream-form p {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 1.75rem;
+            line-height: 1.6;
+        }
+
+        .url-input-group {
+            display: flex;
+            gap: 0.75rem;
+            margin-bottom: 1rem;
+        }
+        .url-input {
+            flex: 1;
+            padding: 0.75rem 1rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-subtle);
+            border-radius: 10px;
+            color: var(--text-primary);
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+        .url-input:focus {
+            border-color: var(--accent-cyan);
+        }
+        .url-input::placeholder { color: var(--text-muted); }
+
+        .stream-task-reminder {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            padding: 0.85rem 1rem;
+            background: rgba(0, 245, 212, 0.04);
+            border: 1px solid rgba(0, 245, 212, 0.12);
+            border-radius: 10px;
+            margin-bottom: 1.5rem;
+        }
+        .stream-task-reminder-dot {
+            width: 8px; height: 8px;
+            border-radius: 50%;
+            background: var(--accent-cyan);
+            flex-shrink: 0;
+        }
+        .stream-task-reminder span {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+        .stream-task-reminder strong {
+            color: var(--text-primary);
+        }
+
+        /* ─── STEP 4: VERIFYING ─── */
+        .verifying-card {
+            background: var(--gradient-card);
+            border: 1px solid rgba(155, 93, 229, 0.2);
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .scan-box {
+            width: 200px; height: 200px;
+            margin: 0 auto 2rem;
+            border-radius: 20px;
+            background: linear-gradient(135deg, var(--bg-tertiary) 0%, var(--bg-secondary) 100%);
+            border: 1px solid rgba(155, 93, 229, 0.3);
+            position: relative;
+            overflow: hidden;
+        }
+        .scan-line {
+            position: absolute;
+            top: 0; left: 0; right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, transparent, var(--accent-purple), transparent);
+            animation: scanDown 2.5s linear infinite;
+            box-shadow: 0 0 20px rgba(155, 93, 229, 0.5);
+        }
+        @keyframes scanDown {
+            0% { top: 0; opacity: 0; }
+            10% { opacity: 1; }
+            90% { opacity: 1; }
+            100% { top: 100%; opacity: 0; }
+        }
+
+        .scan-box-corners {
+            position: absolute;
+            inset: 12px;
+        }
+        .scan-box-corners::before,
+        .scan-box-corners::after {
+            content: '';
+            position: absolute;
+            width: 20px; height: 20px;
+            border-color: var(--accent-purple);
+            border-style: solid;
+        }
+        .scan-box-corners::before {
+            top: 0; left: 0;
+            border-width: 2px 0 0 2px;
+        }
+        .scan-box-corners::after {
+            bottom: 0; right: 0;
+            border-width: 0 2px 2px 0;
+        }
+        .scan-box-corners-extra::before,
+        .scan-box-corners-extra::after {
+            content: '';
+            position: absolute;
+            width: 20px; height: 20px;
+            border-color: var(--accent-purple);
+            border-style: solid;
+        }
+        .scan-box-corners-extra {
+            position: absolute;
+            inset: 12px;
+        }
+        .scan-box-corners-extra::before {
+            top: 0; right: 0;
+            border-width: 2px 2px 0 0;
+        }
+        .scan-box-corners-extra::after {
+            bottom: 0; left: 0;
+            border-width: 0 0 2px 2px;
+        }
+
+        .scan-eye {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 48px; height: 48px;
+            border: 2px solid var(--accent-purple);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            animation: eyePulse 2s ease-in-out infinite;
+        }
+        .scan-eye::before {
+            content: '';
+            width: 16px; height: 16px;
+            background: var(--accent-purple);
+            border-radius: 50%;
+        }
+        @keyframes eyePulse {
+            0%, 100% { transform: translate(-50%, -50%) scale(1); opacity: 1; }
+            50% { transform: translate(-50%, -50%) scale(1.15); opacity: 0.7; }
+        }
+
+        .verifying-title {
+            font-family: var(--font-display);
+            font-size: 1.3rem;
+            font-weight: 700;
+            margin-bottom: 0.5rem;
+        }
+        .verifying-sub {
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+            margin-bottom: 0.75rem;
+        }
+        .verifying-condition {
+            font-family: var(--font-mono);
+            font-size: 0.8rem;
+            color: var(--accent-purple);
+            padding: 0.5rem 1rem;
+            background: rgba(155, 93, 229, 0.08);
+            border: 1px solid rgba(155, 93, 229, 0.15);
+            border-radius: 8px;
+            display: inline-block;
+        }
+
+        .verifying-glow {
+            position: absolute;
+            top: 50%; left: 50%;
+            transform: translate(-50%, -50%);
+            width: 300px; height: 300px;
+            background: radial-gradient(circle, rgba(155, 93, 229, 0.1) 0%, transparent 70%);
+            pointer-events: none;
+            animation: glowPulse 3s ease-in-out infinite;
+        }
+        @keyframes glowPulse {
+            0%, 100% { opacity: 0.5; transform: translate(-50%, -50%) scale(1); }
+            50% { opacity: 1; transform: translate(-50%, -50%) scale(1.2); }
+        }
+
+        /* ─── STEP 5: RESULT ─── */
+        .result-card {
+            background: var(--gradient-card);
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .result-card.verified {
+            border: 1px solid rgba(0, 245, 212, 0.25);
+        }
+        .result-card.not-verified {
+            border: 1px solid rgba(239, 68, 68, 0.25);
+        }
+
+        .result-icon {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2rem;
+        }
+        .result-card.verified .result-icon {
+            background: rgba(0, 245, 212, 0.12);
+            border: 2px solid rgba(0, 245, 212, 0.3);
+            color: var(--accent-cyan);
+        }
+        .result-card.not-verified .result-icon {
+            background: rgba(239, 68, 68, 0.12);
+            border: 2px solid rgba(239, 68, 68, 0.3);
+            color: var(--accent-red);
+        }
+
+        .result-title {
+            font-family: var(--font-display);
+            font-size: 1.5rem;
+            font-weight: 800;
+            margin-bottom: 0.75rem;
+        }
+        .result-card.verified .result-title { color: var(--accent-cyan); }
+        .result-card.not-verified .result-title { color: var(--accent-red); }
+
+        .result-explanation {
+            font-size: 0.95rem;
+            color: var(--text-secondary);
+            line-height: 1.7;
+            max-width: 500px;
+            margin: 0 auto 1.5rem;
+        }
+
+        .result-meta {
+            display: inline-flex;
+            gap: 1.5rem;
+            padding: 0.75rem 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 10px;
+            margin-bottom: 2rem;
+        }
+        .result-meta-item {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 0.15rem;
+        }
+        .result-meta-label {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+        }
+        .result-meta-value {
+            font-family: var(--font-mono);
+            font-size: 0.85rem;
+            font-weight: 700;
+        }
+
+        .result-actions {
+            display: flex;
+            justify-content: center;
+            gap: 0.75rem;
+        }
+
+        /* ─── STEP 6: PAYOUT ─── */
+        .payout-card {
+            background: var(--gradient-card);
+            border: 1px solid rgba(34, 197, 94, 0.25);
+            border-radius: 20px;
+            padding: 3rem 2.5rem;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .payout-glow {
+            position: absolute;
+            top: 0; left: 50%;
+            transform: translateX(-50%);
+            width: 400px; height: 200px;
+            background: radial-gradient(ellipse, rgba(34, 197, 94, 0.15) 0%, transparent 70%);
+            pointer-events: none;
+        }
+
+        .payout-check {
+            width: 80px; height: 80px;
+            border-radius: 50%;
+            background: rgba(34, 197, 94, 0.12);
+            border: 2px solid rgba(34, 197, 94, 0.3);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            margin: 0 auto 1.5rem;
+            font-size: 2rem;
+            color: var(--accent-green);
+            animation: checkPop 0.5s ease-out;
+            position: relative;
+            z-index: 1;
+        }
+        @keyframes checkPop {
+            0% { transform: scale(0); opacity: 0; }
+            60% { transform: scale(1.2); }
+            100% { transform: scale(1); opacity: 1; }
+        }
+
+        .payout-label {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.15em;
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .payout-amount {
+            font-family: var(--font-display);
+            font-size: 3.5rem;
+            font-weight: 800;
+            color: var(--accent-green);
+            margin-bottom: 0.5rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .payout-task-name {
+            font-size: 1rem;
+            color: var(--text-secondary);
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+
+        .payout-details {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            padding: 1rem 1.5rem;
+            background: rgba(0, 0, 0, 0.2);
+            border-radius: 12px;
+            margin-bottom: 2rem;
+            position: relative;
+            z-index: 1;
+        }
+        .payout-detail-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 2rem;
+            font-size: 0.85rem;
+        }
+        .payout-detail-row .label { color: var(--text-muted); }
+        .payout-detail-row .value { color: var(--text-primary); font-weight: 600; }
+
+        /* Confetti */
+        .confetti-container {
+            position: fixed;
+            top: 0; left: 0;
+            width: 100%; height: 100%;
+            pointer-events: none;
+            z-index: 200;
+            overflow: hidden;
+        }
+        .confetti {
+            position: absolute;
+            width: 8px; height: 8px;
+            border-radius: 2px;
+            top: -10px;
+            animation: confettiFall 3s ease-in forwards;
+        }
+        @keyframes confettiFall {
+            0% { transform: translateY(0) rotate(0deg); opacity: 1; }
+            100% { transform: translateY(100vh) rotate(720deg); opacity: 0; }
+        }
+
+        /* ─── BACK BUTTON ─── */
+        .back-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.4rem;
+            color: var(--text-muted);
+            font-size: 0.85rem;
+            cursor: pointer;
+            transition: color 0.2s;
+            background: none;
+            border: none;
+            font-family: var(--font-body);
+            margin-bottom: 1.5rem;
+        }
+        .back-btn:hover { color: var(--text-primary); }
+
+        /* ─── RESPONSIVE ─── */
+        @media (max-width: 640px) {
+            .main {
+                padding-left: 1rem;
+                padding-right: 1rem;
+            }
+            .task-grid {
+                grid-template-columns: 1fr;
+            }
+            .topbar {
+                padding: 0 1rem;
+            }
+            .breadcrumb {
+                display: none;
+            }
+            .detail-card-top,
+            .detail-info-row,
+            .detail-condition,
+            .detail-actions {
+                padding-left: 1.25rem;
+                padding-right: 1.25rem;
+            }
+            .stream-form,
+            .verifying-card,
+            .result-card,
+            .payout-card {
+                padding: 2rem 1.25rem;
+            }
+            .url-input-group {
+                flex-direction: column;
+            }
+            .payout-amount {
+                font-size: 2.5rem;
+            }
+        }
+
+        /* ─── TOAST ─── */
+        .toast {
+            position: fixed;
+            bottom: 1.5rem;
+            right: 1.5rem;
+            padding: 0.75rem 1.25rem;
+            background: var(--bg-tertiary);
+            border: 1px solid var(--border-glow);
+            border-radius: 10px;
+            font-size: 0.85rem;
+            color: var(--accent-cyan);
+            z-index: 300;
+            opacity: 0;
+            transform: translateY(10px);
+            transition: all 0.3s ease;
+            pointer-events: none;
+        }
+        .toast.show {
+            opacity: 1;
+            transform: translateY(0);
+            pointer-events: all;
+        }
+    </style>
+</head>
+<body>
+    <div class="grid-bg"></div>
+
+    <!-- TOPBAR -->
+    <header class="topbar">
+        <div class="topbar-left">
+            <a href="/" class="logo">
+                <div class="logo-icon"></div>
+                Verify<span class="logo-sep">/</span>Human
+            </a>
+            <div class="topbar-divider"></div>
+            <div class="breadcrumb" id="breadcrumb"></div>
+        </div>
+    </header>
+
+    <!-- MAIN -->
+    <main class="main">
+        <!-- STEP 1: Browse Tasks -->
+        <div class="step active" id="step-1">
+            <div class="step-header">
+                <h1>Available Tasks</h1>
+                <p>Pick a task, stream yourself completing it, get paid.</p>
+            </div>
+            <div class="task-grid" id="task-grid"></div>
+        </div>
+
+        <!-- STEP 2: Task Detail -->
+        <div class="step" id="step-2">
+            <button class="back-btn" onclick="goToStep(1)">&larr; Back to tasks</button>
+            <div class="detail-card" id="detail-card"></div>
+        </div>
+
+        <!-- STEP 3: Submit Stream -->
+        <div class="step" id="step-3">
+            <button class="back-btn" onclick="goToStep(2)">&larr; Back to task</button>
+            <div class="stream-form" id="stream-form"></div>
+        </div>
+
+        <!-- STEP 4: Verifying -->
+        <div class="step" id="step-4">
+            <div class="verifying-card" id="verifying-card"></div>
+        </div>
+
+        <!-- STEP 5: Result -->
+        <div class="step" id="step-5">
+            <div id="result-container"></div>
+        </div>
+
+        <!-- STEP 6: Payout -->
+        <div class="step" id="step-6">
+            <div id="payout-container"></div>
+        </div>
+    </main>
+
+    <!-- TOAST -->
+    <div class="toast" id="toast"></div>
+
+    <script>
+        // ─── STATE ───
+        let tasks = [];
+        let currentStep = 1;
+        let selectedTask = null;
+        let trioResult = null;
+
+        const stepNames = ['Browse', 'Details', 'Stream', 'Verify', 'Result', 'Payout'];
+
+        // ─── FETCH TASKS FROM API ───
+        async function fetchTasks() {
+            try {
+                const res = await fetch('/api/v1/browse');
+                tasks = await res.json();
+                renderTaskGrid();
+            } catch (err) {
+                showToast('Failed to load tasks');
+            }
+        }
+
+        // ─── NAVIGATION ───
+        function goToStep(step) {
+            currentStep = step;
+            document.querySelectorAll('.step').forEach((el, i) => {
+                el.classList.toggle('active', i + 1 === step);
+            });
+            renderBreadcrumb();
+            renderCurrentStep();
+            window.scrollTo({ top: 0, behavior: 'smooth' });
+        }
+
+        function renderBreadcrumb() {
+            const el = document.getElementById('breadcrumb');
+            el.innerHTML = stepNames.map((name, i) => {
+                const stepNum = i + 1;
+                let cls = 'breadcrumb-step';
+                if (stepNum === currentStep) cls += ' active';
+                else if (stepNum < currentStep) cls += ' done';
+                const sep = i < stepNames.length - 1 ? '<span class="breadcrumb-sep">/</span>' : '';
+                return `<span class="${cls}">${name}</span>${sep}`;
+            }).join('');
+        }
+
+        function renderCurrentStep() {
+            switch (currentStep) {
+                case 1: renderTaskGrid(); break;
+                case 2: renderDetail(); break;
+                case 3: renderStreamForm(); break;
+                case 4: renderVerifying(); break;
+                case 5: renderResult(); break;
+                case 6: renderPayout(); break;
+            }
+        }
+
+        // ─── HELPERS ───
+        function formatPayout(cents) {
+            return '$' + (cents / 100).toFixed(2);
+        }
+
+        // ─── STEP 1: TASK GRID ───
+        function renderTaskGrid() {
+            const el = document.getElementById('task-grid');
+            el.innerHTML = tasks.map(t => `
+                <div class="task-card" onclick="selectTask('${t.task_id}')">
+                    <div class="task-card-agent">${t.agent_id}</div>
+                    <div class="task-card-title">${t.title}</div>
+                    <div class="task-card-desc">${t.description}</div>
+                    <div class="task-card-footer">
+                        <div class="task-card-payout">${formatPayout(t.payout_cents)}</div>
+                        <div class="task-card-arrow">&rarr;</div>
+                    </div>
+                </div>
+            `).join('');
+        }
+
+        function selectTask(id) {
+            selectedTask = tasks.find(t => t.task_id === id);
+            trioResult = null;
+            goToStep(2);
+        }
+
+        // ─── STEP 2: DETAIL ───
+        function renderDetail() {
+            if (!selectedTask) return;
+            const t = selectedTask;
+            document.getElementById('detail-card').innerHTML = `
+                <div class="detail-card-top">
+                    <div class="detail-agent-badge">${t.agent_id}</div>
+                    <div class="detail-title">${t.title}</div>
+                    <div class="detail-desc">${t.description}</div>
+                </div>
+                <div class="detail-info-row">
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">Payout</span>
+                        <span class="detail-info-value payout">${formatPayout(t.payout_cents)}</span>
+                    </div>
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">Agent</span>
+                        <span class="detail-info-value">${t.agent_id}</span>
+                    </div>
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">Verification</span>
+                        <span class="detail-info-value">Trio VLM</span>
+                    </div>
+                </div>
+                <div class="detail-condition">
+                    <div class="detail-condition-icon">&#9673;</div>
+                    <div class="detail-condition-text">
+                        <div class="label">Trio will check for</div>
+                        <div class="value">"${t.condition}"</div>
+                    </div>
+                </div>
+                <div class="detail-actions">
+                    <button class="btn btn-primary btn-large" onclick="goToStep(3)">Accept Task</button>
+                    <button class="btn btn-ghost btn-large" onclick="goToStep(1)">Back</button>
+                </div>
+            `;
+        }
+
+        // ─── STEP 3: STREAM FORM ───
+        function renderStreamForm() {
+            if (!selectedTask) return;
+            const t = selectedTask;
+            document.getElementById('stream-form').innerHTML = `
+                <div class="stream-form-icon">&#9654;</div>
+                <h2>Submit Your Livestream</h2>
+                <p>Start a YouTube livestream of yourself completing the task, then paste the URL below.</p>
+                <div class="stream-task-reminder">
+                    <div class="stream-task-reminder-dot"></div>
+                    <span>Task: <strong>${t.title}</strong> &mdash; ${formatPayout(t.payout_cents)}</span>
+                </div>
+                <div class="url-input-group">
+                    <input class="url-input" id="stream-url" type="url" placeholder="https://youtube.com/live/..." />
+                    <button class="btn btn-primary" id="verify-btn" onclick="startVerification()">Start Verification</button>
+                </div>
+            `;
+        }
+
+        // ─── STEP 4: VERIFYING ───
+        function renderVerifying() {
+            if (!selectedTask) return;
+            const t = selectedTask;
+            document.getElementById('verifying-card').innerHTML = `
+                <div class="verifying-glow"></div>
+                <div class="scan-box">
+                    <div class="scan-line"></div>
+                    <div class="scan-box-corners"></div>
+                    <div class="scan-box-corners-extra"></div>
+                    <div class="scan-eye"></div>
+                </div>
+                <div class="verifying-title">Trio is watching your stream...</div>
+                <div class="verifying-sub">Analyzing video feed for task completion</div>
+                <div class="verifying-condition">"${t.condition}"</div>
+            `;
+        }
+
+        // ─── BACKEND VERIFICATION CALL ───
+        async function startVerification() {
+            const urlInput = document.getElementById('stream-url');
+            const url = urlInput.value.trim();
+
+            if (!url) {
+                showToast('Please enter a YouTube livestream URL');
+                return;
+            }
+
+            goToStep(4);
+
+            try {
+                const response = await fetch(`/api/v1/browse/${selectedTask.task_id}/check`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ video_url: url }),
+                });
+
+                const data = await response.json();
+
+                if (!response.ok) {
+                    trioResult = {
+                        verified: false,
+                        explanation: data.error || 'Verification request failed.',
+                        confidence: null,
+                    };
+                } else {
+                    trioResult = {
+                        verified: data.verified,
+                        explanation: data.explanation || 'No explanation provided.',
+                        confidence: data.confidence,
+                    };
+                }
+            } catch (err) {
+                trioResult = {
+                    verified: false,
+                    explanation: `Network error: ${err.message}. Make sure your stream URL is valid and the stream is live.`,
+                    confidence: null,
+                };
+            }
+
+            goToStep(5);
+        }
+
+        // ─── STEP 5: RESULT ───
+        function renderResult() {
+            if (!trioResult || !selectedTask) return;
+            const r = trioResult;
+            const t = selectedTask;
+            const isVerified = r.verified;
+
+            document.getElementById('result-container').innerHTML = `
+                <div class="result-card ${isVerified ? 'verified' : 'not-verified'}">
+                    <div class="result-icon">${isVerified ? '&#10003;' : '&#10007;'}</div>
+                    <div class="result-title">${isVerified ? 'Verified' : 'Not Verified'}</div>
+                    <div class="result-explanation">${escapeHtml(r.explanation)}</div>
+                    ${r.confidence !== null ? `
+                        <div class="result-meta">
+                            <div class="result-meta-item">
+                                <span class="result-meta-label">Confidence</span>
+                                <span class="result-meta-value" style="color: ${isVerified ? 'var(--accent-cyan)' : 'var(--accent-red)'}">${typeof r.confidence === 'number' ? r.confidence.toFixed(1) + '%' : r.confidence}</span>
+                            </div>
+                            <div class="result-meta-item">
+                                <span class="result-meta-label">Task</span>
+                                <span class="result-meta-value">${t.title}</span>
+                            </div>
+                        </div>
+                    ` : `
+                        <div class="result-meta">
+                            <div class="result-meta-item">
+                                <span class="result-meta-label">Task</span>
+                                <span class="result-meta-value">${t.title}</span>
+                            </div>
+                        </div>
+                    `}
+                    <div class="result-actions">
+                        ${isVerified ? `
+                            <button class="btn btn-primary btn-large" onclick="goToStep(6)">Claim Payout</button>
+                        ` : `
+                            <button class="btn btn-primary btn-large" onclick="goToStep(3)">Try Again</button>
+                            <button class="btn btn-ghost btn-large" onclick="goToStep(1)">Browse Tasks</button>
+                        `}
+                    </div>
+                </div>
+            `;
+        }
+
+        // ─── STEP 6: PAYOUT ───
+        function renderPayout() {
+            if (!selectedTask) return;
+            const t = selectedTask;
+            const payoutDollars = t.payout_cents / 100;
+
+            document.getElementById('payout-container').innerHTML = `
+                <div class="payout-card">
+                    <div class="payout-glow"></div>
+                    <div class="payout-check">&#10003;</div>
+                    <div class="payout-label">Task Completed</div>
+                    <div class="payout-amount" id="payout-counter">$0.00</div>
+                    <div class="payout-task-name">${t.title} &mdash; verified by Trio VLM</div>
+                    <div class="payout-details">
+                        <div class="payout-detail-row">
+                            <span class="label">Agent</span>
+                            <span class="value">${t.agent_id}</span>
+                        </div>
+                        <div class="payout-detail-row">
+                            <span class="label">Payout</span>
+                            <span class="value" style="color: var(--accent-green)">${formatPayout(t.payout_cents)}</span>
+                        </div>
+                        <div class="payout-detail-row">
+                            <span class="label">Status</span>
+                            <span class="value" style="color: var(--accent-green)">Paid</span>
+                        </div>
+                    </div>
+                    <div>
+                        <button class="btn btn-primary btn-large" onclick="goToStep(1)">Back to Tasks</button>
+                    </div>
+                </div>
+            `;
+
+            animateCounter(payoutDollars);
+            launchConfetti();
+        }
+
+        function animateCounter(target) {
+            const el = document.getElementById('payout-counter');
+            if (!el) return;
+            const duration = 1200;
+            const start = performance.now();
+
+            function update(now) {
+                const elapsed = now - start;
+                const progress = Math.min(elapsed / duration, 1);
+                const eased = 1 - Math.pow(1 - progress, 3);
+                const value = target * eased;
+                el.textContent = `$${value.toFixed(2)}`;
+                if (progress < 1) requestAnimationFrame(update);
+            }
+            requestAnimationFrame(update);
+        }
+
+        function launchConfetti() {
+            const container = document.createElement('div');
+            container.className = 'confetti-container';
+            document.body.appendChild(container);
+
+            const colors = ['#00f5d4', '#9b5de5', '#f72585', '#22c55e', '#f59e0b', '#ffffff'];
+
+            for (let i = 0; i < 60; i++) {
+                const piece = document.createElement('div');
+                piece.className = 'confetti';
+                piece.style.left = Math.random() * 100 + '%';
+                piece.style.backgroundColor = colors[Math.floor(Math.random() * colors.length)];
+                piece.style.animationDelay = Math.random() * 1.5 + 's';
+                piece.style.animationDuration = 2 + Math.random() * 2 + 's';
+                piece.style.width = 4 + Math.random() * 8 + 'px';
+                piece.style.height = 4 + Math.random() * 8 + 'px';
+                piece.style.borderRadius = Math.random() > 0.5 ? '50%' : '2px';
+                container.appendChild(piece);
+            }
+
+            setTimeout(() => container.remove(), 5000);
+        }
+
+        // ─── UTILS ───
+        function escapeHtml(str) {
+            const div = document.createElement('div');
+            div.textContent = str;
+            return div.innerHTML;
+        }
+
+        function showToast(msg) {
+            const el = document.getElementById('toast');
+            el.textContent = msg;
+            el.classList.add('show');
+            setTimeout(() => el.classList.remove('show'), 2500);
+        }
+
+        // ─── INIT ───
+        renderBreadcrumb();
+        fetchTasks();
+    </script>
+</body>
+</html>

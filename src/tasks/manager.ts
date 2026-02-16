@@ -42,8 +42,8 @@ export class TaskManager {
   private prepareStatements() {
     return {
       insertTask: this.db.prepare(`
-        INSERT INTO tasks (task_id, agent_id, description, webhook_url, status, stream_url, redaction_policy, max_duration_seconds)
-        VALUES (?, ?, ?, ?, 'pending', ?, ?, ?)
+        INSERT INTO tasks (task_id, agent_id, description, title, payout_cents, webhook_url, status, stream_url, redaction_policy, max_duration_seconds)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
       `),
       updateTaskStatus: this.db.prepare(`
         UPDATE tasks SET status = ?, updated_at = datetime('now') WHERE task_id = ?
@@ -131,6 +131,8 @@ export class TaskManager {
       taskId,
       config.agent_id,
       config.description,
+      config.title ?? "",
+      config.payout_cents ?? 0,
       config.webhook_url,
       streamSession.rtsp_url,
       JSON.stringify(config.redaction_policy ?? DEFAULT_REDACTION_POLICY),

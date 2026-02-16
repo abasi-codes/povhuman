@@ -1,6 +1,6 @@
 import { serve } from "@hono/node-server";
 import { serveStatic } from "@hono/node-server/serve-static";
-import { existsSync } from "node:fs";
+import { existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { Hono } from "hono";
 import { cors } from "hono/cors";
@@ -16,6 +16,8 @@ import { AgentDelivery } from "./agents/delivery.js";
 import { EvidenceCaptureService } from "./evidence/capture.js";
 import { createWebhookReceiver } from "./webhooks/receiver.js";
 import { createTaskRoutes } from "./routes/tasks.js";
+import { createBrowseRoutes } from "./routes/browse.js";
+import { seedDemoTasks } from "./db/seed.js";
 import { createHealthRoutes } from "./routes/health.js";
 import { createEventRoutes } from "./routes/events.js";
 import { createAgentKeyRoutes } from "./routes/agents.js";
@@ -47,6 +49,14 @@ const taskManager = new TaskManager(
   evidenceCapture,
   webhookBaseUrl,
 );
+
+// --- Seed demo tasks ---
+seedDemoTasks(db, taskManager);
+
+// --- Load HTML pages ---
+const rootDir = join(import.meta.dirname ?? ".", "..");
+const landingHtml = readFileSync(join(rootDir, "landing.html"), "utf-8");
+const dashboardHtml = readFileSync(join(rootDir, "dashboard.html"), "utf-8");
 
 // --- Webhook handler: routes Trio events to task manager ---
 
@@ -142,12 +152,19 @@ app.route(
   createWebhookReceiver(config.trio.webhookSecret, handleWebhook),
 );
 
+// Serve landing page and dashboard
+app.get("/", (c) => c.html(landingHtml));
+app.get("/dashboard", (c) => c.html(dashboardHtml));
+
 // Task management
 app.route("/api/v1/tasks", createTaskRoutes(taskManager));
 
 // Event feed (nested under /api/v1/tasks/:id/events)
 const eventRoutes = createEventRoutes(taskManager);
 app.route("/api/v1/tasks/:id/events", eventRoutes);
+
+// Browse API (human-facing)
+app.route("/api/v1/browse", createBrowseRoutes(taskManager, trio));
 
 // Agent key management
 app.route("/api/v1/agents", createAgentKeyRoutes(db));

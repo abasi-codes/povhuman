@@ -11,6 +11,8 @@ export function initDatabase(dbPath: string): Database.Database {
       task_id TEXT PRIMARY KEY,
       agent_id TEXT NOT NULL,
       description TEXT NOT NULL,
+      title TEXT DEFAULT '',
+      payout_cents INTEGER DEFAULT 0,
       webhook_url TEXT NOT NULL,
       status TEXT NOT NULL DEFAULT 'pending',
       -- status: pending | awaiting_stream | streaming | verifying | completed | failed | expired | cancelled
@@ -102,6 +104,8 @@ export interface TaskRow {
   task_id: string;
   agent_id: string;
   description: string;
+  title: string;
+  payout_cents: number;
   webhook_url: string;
   status: string;
   stream_url: string | null;
