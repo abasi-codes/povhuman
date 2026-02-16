@@ -119,9 +119,14 @@ export function createBrowseRoutes(
         });
       }
 
-      // All other tasks pass in demo mode
+      // All other tasks pass in demo mode with varied confidence
       const explanation = "Task activity detected and verified.";
-      const confidence = 0.92;
+      const confidenceByAgent: Record<string, number> = {
+        HomeBot: 0.95,
+        TidyUp: 0.91,
+        ChefBot: 0.97,
+      };
+      const confidence = confidenceByAgent[task.agent_id] ?? 0.93;
 
       // Mark checkpoint as verified
       const verifyStmt = (taskManager as any).db.prepare(
