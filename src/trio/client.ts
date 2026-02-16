@@ -16,7 +16,7 @@ export class TrioClient {
   private googleApiKey: string;
 
   constructor(baseUrl: string, googleApiKey: string) {
-    this.baseUrl = baseUrl.replace(/\/$/, "");
+    this.baseUrl = baseUrl.replace(/\/$/, "") + "/api";
     this.googleApiKey = googleApiKey;
   }
 
