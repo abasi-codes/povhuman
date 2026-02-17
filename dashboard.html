@@ -1184,7 +1184,7 @@
             urlInput.addEventListener('input', () => {
                 const videoId = extractYouTubeId(urlInput.value);
                 if (videoId) {
-                    preview.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                    preview.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
                     preview.classList.add('visible');
                 } else {
                     preview.innerHTML = '';
@@ -1201,7 +1201,7 @@
 
             const visualBlock = videoId
                 ? `<div class="stream-embed">
-                       <iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                       <iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1&mute=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
                    </div>`
                 : `<div class="scan-box">
                        <div class="scan-line"></div>
