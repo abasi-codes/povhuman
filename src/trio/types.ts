@@ -20,7 +20,7 @@ export interface PrepareStreamResponse {
 }
 
 export interface LiveMonitorRequest {
-  url: string;
+  stream_url: string;
   condition: string;
   webhook_url: string;
   interval_seconds?: number; // 5-300, default 30
@@ -37,7 +37,7 @@ export interface LiveMonitorResponse {
 }
 
 export interface LiveDigestRequest {
-  url: string;
+  stream_url: string;
   prompt?: string;
   webhook_url: string;
   window_minutes?: number; // 1-60
@@ -52,7 +52,7 @@ export interface LiveDigestResponse {
 }
 
 export interface CheckOnceRequest {
-  url: string;
+  stream_url: string;
   condition: string;
   input_mode?: InputMode;
   clip_duration_seconds?: number;

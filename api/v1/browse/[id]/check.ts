@@ -1,3 +1,5 @@
+const TRIO_BASE = "https://trio.machinefi.com/api";
+
 const DEMO_TASKS = [
   {
     task_id: "task-wash-dishes",
@@ -44,7 +46,7 @@ const mockResults: Record<string, { confidence: number; explanation: string }> =
   },
 };
 
-export default function handler(req: any, res: any) {
+export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
     return res.status(405).end();
@@ -57,22 +59,80 @@ export default function handler(req: any, res: any) {
     return res.status(404).json({ error: "Task not found", code: "NOT_FOUND" });
   }
 
-  if (task.agent_id === "BakeAssist") {
+  const { video_url } = req.body ?? {};
+  if (!video_url || typeof video_url !== "string") {
+    return res.status(400).json({ error: "video_url is required", code: "VALIDATION_ERROR" });
+  }
+
+  const apiKey = process.env.TRIO_API_KEY;
+
+  // --- Mock fallback when no API key is configured ---
+  if (!apiKey) {
+    if (task.agent_id === "BakeAssist") {
+      return res.json({
+        verified: false,
+        explanation:
+          "Could not detect cookie baking activity. No evidence of mixing ingredients or placing a tray in the oven was observed. Stream showed general kitchen activity but no cookie dough preparation was identified.",
+        confidence: 22.3,
+        payout_cents: 0,
+      });
+    }
+
+    const result = mockResults[task.agent_id] ?? { confidence: 93.0, explanation: "Task activity detected and verified by Trio VLM." };
     return res.json({
-      verified: false,
-      explanation:
-        "Could not detect cookie baking activity. No evidence of mixing ingredients or placing a tray in the oven was observed. Stream showed general kitchen activity but no cookie dough preparation was identified.",
-      confidence: 22.3,
-      payout_cents: 0,
+      verified: true,
+      explanation: result.explanation,
+      confidence: result.confidence,
+      payout_cents: task.payout_cents,
     });
   }
 
-  const result = mockResults[task.agent_id] ?? { confidence: 93.0, explanation: "Task activity detected and verified by Trio VLM." };
+  // --- Real Trio verification ---
+  try {
+    const trioRes = await fetch(`${TRIO_BASE}/check-once`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: `Bearer ${apiKey}`,
+      },
+      body: JSON.stringify({
+        stream_url: video_url,
+        condition: task.condition,
+      }),
+    });
 
-  return res.json({
-    verified: true,
-    explanation: result.explanation,
-    confidence: result.confidence,
-    payout_cents: task.payout_cents,
-  });
+    const body = await trioRes.json();
+
+    // Trio returns 4xx with error object for non-livestream URLs
+    if (!trioRes.ok) {
+      const code = body?.error?.code;
+      if (code === "NOT_LIVESTREAM") {
+        return res.json({
+          verified: false,
+          explanation:
+            "The URL provided is not an active YouTube livestream. Please submit a URL with a LIVE badge.",
+        });
+      }
+      const msg = body?.error?.message ?? `Trio returned ${trioRes.status}`;
+      return res.json({ verified: false, explanation: `Stream error: ${msg}` });
+    }
+
+    if (body.triggered) {
+      return res.json({
+        verified: true,
+        explanation: body.explanation,
+        payout_cents: task.payout_cents,
+      });
+    }
+
+    return res.json({
+      verified: false,
+      explanation: body.explanation,
+    });
+  } catch (err: any) {
+    return res.json({
+      verified: false,
+      explanation: `Stream error: ${err.message ?? "Unknown error"}`,
+    });
+  }
 }

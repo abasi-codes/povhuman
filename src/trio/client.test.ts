@@ -18,7 +18,7 @@ describe("TrioClient", () => {
     const [url, opts] = fetchFn.mock.calls[0];
     expect(url).toContain("/validate-url?url=");
     expect(opts.method).toBe("GET");
-    expect(opts.headers["X-Google-Api-Key"]).toBe("gk-test");
+    expect(opts.headers["Authorization"]).toBe("Bearer gk-test");
   });
 
   it("prepareStream sends POST with url in body", async () => {
@@ -31,27 +31,27 @@ describe("TrioClient", () => {
 
   it("startLiveMonitor defaults max_duration_seconds to 600", async () => {
     const fetchFn = mockFetch([{ ok: true, body: { job_id: "j1", status: "started" } }]);
-    await client.startLiveMonitor({ url: "u", condition: "c", webhook_url: "w" });
+    await client.startLiveMonitor({ stream_url: "u", condition: "c", webhook_url: "w" });
     const body = JSON.parse(fetchFn.mock.calls[0][1].body);
     expect(body.max_duration_seconds).toBe(600);
   });
 
   it("startLiveMonitor preserves explicit max_duration_seconds", async () => {
     const fetchFn = mockFetch([{ ok: true, body: { job_id: "j1", status: "started" } }]);
-    await client.startLiveMonitor({ url: "u", condition: "c", webhook_url: "w", max_duration_seconds: 300 });
+    await client.startLiveMonitor({ stream_url: "u", condition: "c", webhook_url: "w", max_duration_seconds: 300 });
     const body = JSON.parse(fetchFn.mock.calls[0][1].body);
     expect(body.max_duration_seconds).toBe(300);
   });
 
   it("startLiveDigest posts to /live-digest", async () => {
     const fetchFn = mockFetch([{ ok: true, body: { job_id: "j2", status: "started" } }]);
-    await client.startLiveDigest({ url: "u", webhook_url: "w" });
+    await client.startLiveDigest({ stream_url: "u", webhook_url: "w" });
     expect(fetchFn.mock.calls[0][0]).toContain("/live-digest");
   });
 
   it("checkOnce posts to /check-once", async () => {
     const fetchFn = mockFetch([{ ok: true, body: { triggered: false, explanation: "no" } }]);
-    await client.checkOnce({ url: "u", condition: "c" });
+    await client.checkOnce({ stream_url: "u", condition: "c" });
     expect(fetchFn.mock.calls[0][0]).toContain("/check-once");
   });
 

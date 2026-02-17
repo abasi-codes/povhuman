@@ -197,7 +197,7 @@ export class TaskManager {
     const condition = buildCombinedCondition(checkpoints);
 
     const result = await this.trio.startLiveMonitor({
-      url: task.stream_url!,
+      stream_url: task.stream_url!,
       condition,
       webhook_url: `${this.webhookBaseUrl}/webhooks/trio`,
       interval_seconds: 15,
@@ -435,7 +435,7 @@ export class TaskManager {
 
     try {
       const result = await this.trio.startLiveMonitor({
-        url: task.stream_url!,
+        stream_url: task.stream_url!,
         condition: job.condition || "",
         webhook_url: `${this.webhookBaseUrl}/webhooks/trio`,
         interval_seconds: job.interval_seconds,

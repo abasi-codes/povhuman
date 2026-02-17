@@ -19,14 +19,13 @@ export class TrioClient {
   constructor(baseUrl: string, apiKey: string) {
     this.baseUrl = baseUrl.replace(/\/$/, "") + "/api";
     this.apiKey = apiKey;
-    // Trio API keys (qm_ prefix, JWT ey prefix) use Bearer auth
-    // Google API keys use X-Google-Api-Key header
-    this.authMode = apiKey.startsWith("ey") || apiKey.startsWith("qm_") ? "bearer" : "google";
+    // Google API keys (AIza prefix) use X-Google-Api-Key header
+    // Everything else (Trio dashboard keys, JWTs, etc.) uses Bearer auth
+    this.authMode = apiKey.startsWith("AIza") ? "google" : "bearer";
   }
 
   get hasApiKey(): boolean {
-    // Only Google API keys work for checkOnce; qm_/ey (bearer) keys cause Worker exceptions
-    return this.apiKey.length > 0 && this.authMode === "google";
+    return this.apiKey.length > 0;
   }
 
   private async request<T>(

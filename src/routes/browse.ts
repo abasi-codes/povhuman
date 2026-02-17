@@ -170,7 +170,7 @@ export function createBrowseRoutes(
 
     try {
       const result = await trio.checkOnce({
-        url: parsed.data.video_url,
+        stream_url: parsed.data.video_url,
         condition,
       });
 
