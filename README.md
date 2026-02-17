@@ -1,24 +1,22 @@
 # VerifyHuman
 
-Livestream verification for human task completion. AI agents verify real-world work via live video + [Trio](https://docs.machinefi.com) VLM.
+Livestream verification for human task completion. AI agents post tasks, humans stream themselves completing them, and [Trio](https://docs.machinefi.com) VLM verifies the work in real time.
 
-Agent creates task with checkpoints → human streams from phone → Trio verifies each checkpoint live → agent gets webhook with verification hash.
+```
+Agent creates task (checkpoints: location + object + document)
+  → Human claims task, starts YouTube livestream
+    → Trio watches the stream, checks each checkpoint
+      → VerifyHuman delivers verification events to agent
+        → All checkpoints pass → task_completed + SHA-256 hash
+```
 
 ## How it works
 
-```
-AI Agent creates task (checkpoints: location + object + document)
-  -> Human claims task, gets stream URL
-    -> Human streams from phone while working
-      -> Trio watches stream, checks each checkpoint
-        -> VerifyHuman delivers verification events to agent
-          -> All checkpoints pass → task_completed + SHA-256 hash
-```
-
-## Prerequisites
-
-1. **A Google Gemini API key** — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
-2. **Node.js 20+**
+1. **Agent posts a task** with typed checkpoints (e.g. "be at 123 Main St", "show a cardboard package", "hold up delivery receipt") and a webhook URL.
+2. **Human browses available tasks** on the dashboard, picks one, and starts a YouTube livestream.
+3. **Trio VLM watches the stream** and evaluates each checkpoint against the live video feed.
+4. **Verification events fire** to the agent's webhook as checkpoints are confirmed.
+5. **Task completes** with a SHA-256 verification hash covering all checkpoint evidence.
 
 ## Quick start
 
@@ -27,15 +25,20 @@ git clone https://github.com/abasi-codes/verifyhuman.git
 cd verifyhuman
 npm install
 cp .env.example .env
-# Edit .env with your GOOGLE_API_KEY
+# Add your GOOGLE_API_KEY to .env
 npm run dev
 ```
 
-Server starts at `http://localhost:3000`.
+Server starts at `http://localhost:3000`. Dashboard at `http://localhost:3000/dashboard`.
+
+### Prerequisites
+
+- **Node.js 20+**
+- **Google Gemini API key** — [aistudio.google.com/apikey](https://aistudio.google.com/apikey)
 
 ## API
 
-### Create a verification task
+### Create a task
 
 ```bash
 curl -X POST http://localhost:3000/api/v1/tasks \
@@ -51,97 +54,98 @@ curl -X POST http://localhost:3000/api/v1/tasks \
   }'
 ```
 
-### Get task status
+### Other endpoints
 
-```bash
-curl http://localhost:3000/api/v1/tasks/TASK_ID
-```
-
-### Human claims task
-
-```bash
-curl -X POST http://localhost:3000/api/v1/tasks/TASK_ID/claim \
-  -H "Content-Type: application/json" \
-  -d '{ "human_id": "human-123" }'
-```
-
-### Start streaming
-
-```bash
-curl -X POST http://localhost:3000/api/v1/tasks/TASK_ID/start
-```
-
-### Cancel task
-
-```bash
-curl -X POST http://localhost:3000/api/v1/tasks/TASK_ID/stop
-```
-
-### Health check
-
-```bash
-curl http://localhost:3000/health
-# { "status": "ok", "service": "verifyhuman", "version": "0.2.0" }
-```
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/api/v1/tasks/:id` | Task status + checkpoints |
+| `POST` | `/api/v1/tasks/:id/claim` | Human claims a task |
+| `POST` | `/api/v1/tasks/:id/start` | Start streaming |
+| `POST` | `/api/v1/tasks/:id/stop` | Cancel task |
+| `GET` | `/api/v1/browse` | List available tasks (human-facing) |
+| `POST` | `/api/v1/browse/:id/check` | One-shot Trio verification |
+| `GET` | `/api/v1/tasks/:id/events` | SSE verification event stream |
+| `POST` | `/api/v1/agents/keys` | Create agent API key |
+| `GET` | `/health` | Health check |
+| `GET` | `/metrics` | Prometheus metrics |
 
 ## Configuration
 
-All config via environment variables. See [`.env.example`](.env.example).
+All config via environment variables. See [`.env.example`](.env.example) for the full list.
 
-| Variable | Required | Description |
-|----------|:---:|-------------|
-| `GOOGLE_API_KEY` | Yes | Gemini API key (BYOK — costs billed to your Google account) |
-| `TRIO_WEBHOOK_SECRET` | Prod | HMAC secret for webhook signature verification |
-| `REDACTION_ENABLED` | No | `true` (default) to enable face blurring in evidence |
+| Variable | Required | Default | Description |
+|----------|:--------:|---------|-------------|
+| `GOOGLE_API_KEY` | Yes | — | Gemini API key (BYOK — billed to your Google account) |
+| `TRIO_WEBHOOK_SECRET` | Prod | — | HMAC secret for webhook signature verification |
+| `PORT` | No | `3000` | Server port |
+| `DATABASE_PATH` | No | `./data/verifyhuman.db` | SQLite database path |
+| `REDACTION_ENABLED` | No | `true` | Face blurring in evidence frames |
+| `REDACTION_FAIL_CLOSED` | No | `true` | Drop frames on redaction error |
+| `MAX_CONCURRENT_JOBS` | No | `10` | Max simultaneous Trio jobs |
+| `EVENT_RETENTION_HOURS` | No | `72` | Auto-purge events after N hours |
+| `FRAME_RETENTION_MINUTES` | No | `60` | Auto-purge evidence frames after N minutes |
 
 ## Architecture
 
 ```
 src/
-├── tasks/          Task manager, state machine, heartbeat
-├── checkpoints/    Checkpoint types, evaluator, prompt templates
-├── evidence/       Evidence capture + redaction (fail-closed)
-├── stream/         WebRTC relay stub
-├── agents/         Agent webhook delivery, policy gateway
-├── mcp/            MCP tool definitions stub
-├── trio/           Trio API client and types
-├── webhooks/       Webhook receiver, HMAC verification, idempotency
-├── db/             SQLite schema, retention worker
-├── routes/         HTTP routes (tasks, health, events, agents, metrics)
-├── middleware/     Rate limiting, logging, security headers
-└── server.ts       Main entrypoint
+├── server.ts           Entry point — Hono app, middleware, routes, workers
+├── tasks/              Task state machine, lifecycle manager, heartbeat monitor
+├── checkpoints/        Checkpoint types, VLM prompt evaluator
+├── evidence/           Frame capture + face redaction (fail-closed)
+├── trio/               Trio API client, webhook payload types
+├── webhooks/           Webhook receiver, HMAC-SHA256 verification, idempotency
+├── agents/             Agent webhook delivery, policy gateway
+├── stream/             WebRTC relay stub
+├── db/                 SQLite schema (5 tables), retention worker
+├── routes/             HTTP route handlers
+├── middleware/         Rate limiting, request logging, security headers
+└── mcp/                MCP tool definitions stub
 ```
 
-### Key design decisions
-
-**Checkpoint-based verification.** Tasks have typed checkpoints (location, object, document). Each is converted to a Trio VLM prompt. Multiple checkpoints are combined into a single Trio job to conserve the 10-job limit.
-
-**10-minute auto-restart.** Trio jobs hard-stop after 600 seconds. The task manager restarts immediately via webhooks (and a polling heartbeat fallback), targeting <2 second gap.
-
-**Fail-closed evidence capture.** If the redaction service errors, evidence frames are dropped rather than stored unredacted. Face blurring is on by default.
-
-**Verification hash.** On task completion, a SHA-256 hash is generated from all checkpoint evidence (IDs, types, targets, confidence, timestamps). This provides an integrity proof that can later be anchored on-chain.
-
-## Checkpoint Types
+### Checkpoint types
 
 | Type | Status | Description |
 |------|--------|-------------|
-| `location` | Available | Verify person is at a specific location |
-| `object` | Available | Verify an object is visible |
-| `document` | Available | Verify a document is shown |
-| `person` | Coming soon | Verify a person/role is present |
-| `action` | Coming soon | Verify an action is being performed |
-| `duration` | Coming soon | Verify continuous presence |
-| `text` | Coming soon | Verify specific text is visible |
+| `location` | Available | Verify person is at a specific place |
+| `object` | Available | Verify an object is visible on stream |
+| `document` | Available | Verify a document is shown on camera |
+| `person` | Planned | Verify a specific person/role is present |
+| `action` | Planned | Verify an action is being performed |
+| `duration` | Planned | Verify continuous presence over time |
+| `text` | Planned | Verify specific text is visible |
+
+### Key design decisions
+
+- **10-minute auto-restart.** Trio jobs hard-stop at 600s. The task manager restarts immediately via webhooks (polling heartbeat as fallback), targeting < 2s gap.
+- **Fail-closed evidence.** If redaction errors, frames are dropped — never stored unredacted. Face blurring on by default.
+- **Verification hash.** On completion, SHA-256 is computed over all checkpoint evidence (IDs, types, targets, confidence, timestamps). Integrity proof that can be anchored on-chain.
+- **BYOK.** Users supply their own Google Gemini API key. VLM costs are billed to their Google account.
+
+## Tech stack
+
+| Layer | Tech |
+|-------|------|
+| Runtime | Node.js 20+ |
+| Language | TypeScript 5.5 (strict) |
+| HTTP | Hono 4 |
+| Database | SQLite via better-sqlite3 (WAL mode) |
+| Validation | Zod |
+| Logging | Pino |
+| VLM | Trio (Google Gemini) |
+| Testing | Vitest + Playwright |
+| Deployment | Vercel |
 
 ## Security
 
-See [`docs/security-checklist.md`](docs/security-checklist.md) and [`AGENTS.md`](AGENTS.md).
+See [`docs/security-checklist.md`](docs/security-checklist.md) for the full audit checklist.
 
-- API keys are environment-only (never in config files or logs)
+- API keys hashed SHA-256 before storage, raw shown only once
 - Webhook HMAC-SHA256 signature verification
 - Per-agent API key management with revocation
 - Evidence frames redacted before storage
+- Rate limiting (60 req/min general, 10 req/min task creation)
+- Security headers (HSTS, CSP, X-Frame-Options)
 - Fail-closed design throughout
 
 ## License
