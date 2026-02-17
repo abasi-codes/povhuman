@@ -28,6 +28,7 @@ export interface CheckpointConfig {
 }
 
 export interface TaskConfig {
+  task_id?: string;
   agent_id: string;
   description: string;
   title?: string;

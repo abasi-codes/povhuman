@@ -1,0 +1,8 @@
+{
+  "framework": null,
+  "buildCommand": "mkdir -p public && cp landing.html public/index.html && cp dashboard.html public/dashboard.html",
+  "outputDirectory": "public",
+  "rewrites": [
+    { "source": "/dashboard", "destination": "/dashboard.html" }
+  ]
+}

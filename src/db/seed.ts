@@ -4,6 +4,7 @@ import { logger } from "../logger.js";
 
 const DEMO_TASKS = [
   {
+    task_id: "task-wash-dishes",
     agent_id: "HomeBot",
     title: "Wash the Dishes",
     description:
@@ -12,6 +13,7 @@ const DEMO_TASKS = [
     payout_cents: 500,
   },
   {
+    task_id: "task-bake-cookies",
     agent_id: "BakeAssist",
     title: "Bake Cookies",
     description:
@@ -20,6 +22,7 @@ const DEMO_TASKS = [
     payout_cents: 800,
   },
   {
+    task_id: "task-organize-bookshelf",
     agent_id: "TidyUp",
     title: "Organize a Bookshelf",
     description:
@@ -28,6 +31,7 @@ const DEMO_TASKS = [
     payout_cents: 450,
   },
   {
+    task_id: "task-make-food",
     agent_id: "ChefBot",
     title: "Make Food",
     description:
@@ -53,6 +57,7 @@ export function seedDemoTasks(
 
   for (const demo of DEMO_TASKS) {
     taskManager.createTask({
+      task_id: demo.task_id,
       agent_id: demo.agent_id,
       title: demo.title,
       description: demo.description,

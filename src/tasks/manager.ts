@@ -124,7 +124,7 @@ export class TaskManager {
    * Create a verification task with checkpoints.
    */
   createTask(config: TaskConfig): string {
-    const taskId = nanoid(12);
+    const taskId = config.task_id ?? nanoid(12);
     const streamSession = this.streamRelay.createSession(taskId);
 
     this.stmts.insertTask.run(
