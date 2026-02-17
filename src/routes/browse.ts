@@ -113,20 +113,30 @@ export function createBrowseRoutes(
         return c.json({
           verified: false,
           explanation:
-            "Could not detect cookie baking activity. No evidence of mixing ingredients or placing a tray in the oven was observed.",
-          confidence: 0.25,
+            "Could not detect cookie baking activity. No evidence of mixing ingredients or placing a tray in the oven was observed. Stream showed general kitchen activity but no cookie dough preparation was identified.",
+          confidence: 22.3,
           payout_cents: 0,
         });
       }
 
       // All other tasks pass in demo mode with varied confidence
-      const explanation = "Task activity detected and verified.";
-      const confidenceByAgent: Record<string, number> = {
-        HomeBot: 0.95,
-        TidyUp: 0.91,
-        ChefBot: 0.97,
+      const mockResults: Record<string, { confidence: number; explanation: string }> = {
+        HomeBot: {
+          confidence: 95.2,
+          explanation: "Detected person standing at kitchen sink with running water. Dishes observed being scrubbed and placed on drying rack. Sink confirmed empty at end of stream.",
+        },
+        TidyUp: {
+          confidence: 91.7,
+          explanation: "Detected person arranging books on a shelf. Books were sorted upright and grouped by size. Bookshelf appears organized at end of stream.",
+        },
+        ChefBot: {
+          confidence: 97.4,
+          explanation: "Detected food preparation activity in kitchen. Ingredients were chopped and prepped on cutting board. Cooking on stovetop confirmed with visible heat and stirring.",
+        },
       };
-      const confidence = confidenceByAgent[task.agent_id] ?? 0.93;
+      const result = mockResults[task.agent_id] ?? { confidence: 93.0, explanation: "Task activity detected and verified by Trio VLM." };
+      const explanation = result.explanation;
+      const confidence = result.confidence;
 
       // Mark checkpoint as verified
       const verifyStmt = (taskManager as any).db.prepare(
