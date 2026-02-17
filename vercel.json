@@ -1,6 +1,6 @@
 {
   "framework": null,
-  "buildCommand": "mkdir -p public && cp landing.html public/index.html && cp dashboard.html public/dashboard.html",
+  "buildCommand": "mkdir -p public && cp landing.html public/index.html && cp dashboard.html public/dashboard.html && cp frontend/public/favicon.svg public/favicon.svg",
   "outputDirectory": "public",
   "rewrites": [
     { "source": "/dashboard", "destination": "/dashboard.html" }
