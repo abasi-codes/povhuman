@@ -1169,20 +1169,17 @@
                     trioResult = {
                         verified: false,
                         explanation: data.error || 'Verification request failed.',
-                        confidence: null,
                     };
                 } else {
                     trioResult = {
                         verified: data.verified,
                         explanation: data.explanation || 'No explanation provided.',
-                        confidence: data.confidence,
                     };
                 }
             } catch (err) {
                 trioResult = {
                     verified: false,
                     explanation: `Network error: ${err.message}. Make sure your stream URL is valid and the stream is live.`,
-                    confidence: null,
                 };
             }
 
@@ -1201,25 +1198,12 @@
                     <div class="result-icon">${isVerified ? '&#10003;' : '&#10007;'}</div>
                     <div class="result-title">${isVerified ? 'Verified' : 'Not Verified'}</div>
                     <div class="result-explanation">${escapeHtml(r.explanation)}</div>
-                    ${r.confidence !== null ? `
-                        <div class="result-meta">
-                            <div class="result-meta-item">
-                                <span class="result-meta-label">Confidence</span>
-                                <span class="result-meta-value" style="color: ${isVerified ? 'var(--accent-cyan)' : 'var(--accent-red)'}">${typeof r.confidence === 'number' ? r.confidence.toFixed(1) + '%' : r.confidence}</span>
-                            </div>
-                            <div class="result-meta-item">
-                                <span class="result-meta-label">Task</span>
-                                <span class="result-meta-value">${t.title}</span>
-                            </div>
+                    <div class="result-meta">
+                        <div class="result-meta-item">
+                            <span class="result-meta-label">Task</span>
+                            <span class="result-meta-value">${t.title}</span>
                         </div>
-                    ` : `
-                        <div class="result-meta">
-                            <div class="result-meta-item">
-                                <span class="result-meta-label">Task</span>
-                                <span class="result-meta-value">${t.title}</span>
-                            </div>
-                        </div>
-                    `}
+                    </div>
                     <div class="result-actions">
                         ${isVerified ? `
                             <button class="btn btn-primary btn-large" onclick="goToStep(6)">Claim Payout</button>

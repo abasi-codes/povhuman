@@ -31,17 +31,14 @@ const DEMO_TASKS = [
   },
 ];
 
-const mockResults: Record<string, { confidence: number; explanation: string }> = {
+const mockResults: Record<string, { explanation: string }> = {
   HomeBot: {
-    confidence: 95.2,
     explanation: "Detected person standing at kitchen sink with running water. Dishes observed being scrubbed and placed on drying rack. Sink confirmed empty at end of stream.",
   },
   TidyUp: {
-    confidence: 91.7,
     explanation: "Detected person arranging books on a shelf. Books were sorted upright and grouped by size. Bookshelf appears organized at end of stream.",
   },
   ChefBot: {
-    confidence: 97.4,
     explanation: "Detected food preparation activity in kitchen. Ingredients were chopped and prepped on cutting board. Cooking on stovetop confirmed with visible heat and stirring.",
   },
 };
@@ -73,16 +70,14 @@ export default async function handler(req: any, res: any) {
         verified: false,
         explanation:
           "Could not detect cookie baking activity. No evidence of mixing ingredients or placing a tray in the oven was observed. Stream showed general kitchen activity but no cookie dough preparation was identified.",
-        confidence: 22.3,
         payout_cents: 0,
       });
     }
 
-    const result = mockResults[task.agent_id] ?? { confidence: 93.0, explanation: "Task activity detected and verified by Trio VLM." };
+    const result = mockResults[task.agent_id] ?? { explanation: "Task activity detected and verified by Trio VLM." };
     return res.json({
       verified: true,
       explanation: result.explanation,
-      confidence: result.confidence,
       payout_cents: task.payout_cents,
     });
   }

@@ -114,36 +114,31 @@ export function createBrowseRoutes(
           verified: false,
           explanation:
             "Could not detect cookie baking activity. No evidence of mixing ingredients or placing a tray in the oven was observed. Stream showed general kitchen activity but no cookie dough preparation was identified.",
-          confidence: 22.3,
           payout_cents: 0,
         });
       }
 
-      // All other tasks pass in demo mode with varied confidence
-      const mockResults: Record<string, { confidence: number; explanation: string }> = {
+      // All other tasks pass in demo mode
+      const mockResults: Record<string, { explanation: string }> = {
         HomeBot: {
-          confidence: 95.2,
           explanation: "Detected person standing at kitchen sink with running water. Dishes observed being scrubbed and placed on drying rack. Sink confirmed empty at end of stream.",
         },
         TidyUp: {
-          confidence: 91.7,
           explanation: "Detected person arranging books on a shelf. Books were sorted upright and grouped by size. Bookshelf appears organized at end of stream.",
         },
         ChefBot: {
-          confidence: 97.4,
           explanation: "Detected food preparation activity in kitchen. Ingredients were chopped and prepped on cutting board. Cooking on stovetop confirmed with visible heat and stirring.",
         },
       };
-      const result = mockResults[task.agent_id] ?? { confidence: 93.0, explanation: "Task activity detected and verified by Trio VLM." };
+      const result = mockResults[task.agent_id] ?? { explanation: "Task activity detected and verified by Trio VLM." };
       const explanation = result.explanation;
-      const confidence = result.confidence;
 
       // Mark checkpoint as verified
       const verifyStmt = (taskManager as any).db.prepare(
         `UPDATE checkpoints SET verified = 1, verified_at = datetime('now'),
-         evidence_explanation = ?, confidence = ? WHERE checkpoint_id = ?`,
+         evidence_explanation = ? WHERE checkpoint_id = ?`,
       );
-      verifyStmt.run(explanation, confidence, cp.checkpoint_id);
+      verifyStmt.run(explanation, cp.checkpoint_id);
 
       // Complete the task
       const completeStmt = (taskManager as any).db.prepare(
@@ -156,14 +151,13 @@ export function createBrowseRoutes(
       (taskManager as any).db
         .prepare(
           `INSERT INTO verification_events (event_id, task_id, job_id, checkpoint_id, event_type, confidence, explanation, evidence_frame_b64, metadata, expires_at)
-         VALUES (?, ?, NULL, ?, 'checkpoint_verified', ?, ?, NULL, '{}', NULL)`,
+         VALUES (?, ?, NULL, ?, 'checkpoint_verified', NULL, ?, NULL, '{}', NULL)`,
         )
-        .run(eventId, taskId, cp.checkpoint_id, confidence, explanation);
+        .run(eventId, taskId, cp.checkpoint_id, explanation);
 
       return c.json({
         verified: true,
         explanation,
-        confidence,
         payout_cents: task.payout_cents,
       });
     }
@@ -181,11 +175,10 @@ export function createBrowseRoutes(
         const cp = checkpoints[0];
         const verifyStmt = (taskManager as any).db.prepare(
           `UPDATE checkpoints SET verified = 1, verified_at = datetime('now'),
-           evidence_explanation = ?, confidence = ? WHERE checkpoint_id = ?`,
+           evidence_explanation = ? WHERE checkpoint_id = ?`,
         );
         verifyStmt.run(
           result.explanation,
-          result.confidence ?? null,
           cp.checkpoint_id,
         );
 
@@ -200,13 +193,12 @@ export function createBrowseRoutes(
         (taskManager as any).db
           .prepare(
             `INSERT INTO verification_events (event_id, task_id, job_id, checkpoint_id, event_type, confidence, explanation, evidence_frame_b64, metadata, expires_at)
-           VALUES (?, ?, NULL, ?, 'checkpoint_verified', ?, ?, ?, '{}', NULL)`,
+           VALUES (?, ?, NULL, ?, 'checkpoint_verified', NULL, ?, ?, '{}', NULL)`,
           )
           .run(
             eventId,
             taskId,
             cp.checkpoint_id,
-            result.confidence ?? null,
             result.explanation,
             result.frame_b64 ?? null,
           );
@@ -215,7 +207,6 @@ export function createBrowseRoutes(
       return c.json({
         verified,
         explanation: result.explanation,
-        confidence: result.confidence ?? null,
         payout_cents: verified ? task.payout_cents : 0,
       });
     } catch (err) {
