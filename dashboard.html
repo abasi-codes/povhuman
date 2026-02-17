@@ -907,6 +907,46 @@
             }
         }
 
+        /* ─── STREAM PREVIEW (Step 3) ─── */
+        .stream-preview {
+            display: none;
+            margin-top: 1rem;
+            border-radius: 12px;
+            border: 1px solid var(--border-subtle);
+            overflow: hidden;
+            aspect-ratio: 16 / 9;
+            background: var(--bg-tertiary);
+        }
+        .stream-preview.visible {
+            display: block;
+        }
+        .stream-preview iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+
+        /* ─── STREAM EMBED (Step 4 — replaces scan-box) ─── */
+        .stream-embed {
+            width: 100%;
+            max-width: 480px;
+            margin: 0 auto 2rem;
+            border-radius: 16px;
+            overflow: hidden;
+            aspect-ratio: 16 / 9;
+            border: 1px solid rgba(155, 93, 229, 0.3);
+            position: relative;
+            z-index: 1;
+            background: var(--bg-tertiary);
+        }
+        .stream-embed iframe {
+            width: 100%;
+            height: 100%;
+            border: 0;
+            display: block;
+        }
+
         /* ─── TOAST ─── */
         .toast {
             position: fixed;
@@ -994,6 +1034,7 @@
         let currentStep = 1;
         let selectedTask = null;
         let trioResult = null;
+        let streamUrl = null;
 
         const stepNames = ['Browse', 'Details', 'Stream', 'Verify', 'Result', 'Payout'];
 
@@ -1045,6 +1086,18 @@
         // ─── HELPERS ───
         function formatPayout(cents) {
             return '$' + (cents / 100).toFixed(2);
+        }
+
+        function extractYouTubeId(url) {
+            if (!url) return null;
+            const patterns = [
+                /(?:youtube\.com\/watch\?.*v=|youtu\.be\/|youtube\.com\/live\/)([a-zA-Z0-9_-]{11})/,
+            ];
+            for (const re of patterns) {
+                const m = url.match(re);
+                if (m) return m[1];
+            }
+            return null;
         }
 
         // ─── STEP 1: TASK GRID ───
@@ -1123,21 +1176,43 @@
                     <input class="url-input" id="stream-url" type="url" placeholder="https://youtube.com/live/..." />
                     <button class="btn btn-primary" id="verify-btn" onclick="startVerification()">Start Verification</button>
                 </div>
+                <div class="stream-preview" id="stream-preview"></div>
             `;
+
+            const urlInput = document.getElementById('stream-url');
+            const preview = document.getElementById('stream-preview');
+            urlInput.addEventListener('input', () => {
+                const videoId = extractYouTubeId(urlInput.value);
+                if (videoId) {
+                    preview.innerHTML = `<iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>`;
+                    preview.classList.add('visible');
+                } else {
+                    preview.innerHTML = '';
+                    preview.classList.remove('visible');
+                }
+            });
         }
 
         // ─── STEP 4: VERIFYING ───
         function renderVerifying() {
             if (!selectedTask) return;
             const t = selectedTask;
+            const videoId = extractYouTubeId(streamUrl);
+
+            const visualBlock = videoId
+                ? `<div class="stream-embed">
+                       <iframe src="https://www.youtube.com/embed/${videoId}?autoplay=1" allow="autoplay; encrypted-media" allowfullscreen></iframe>
+                   </div>`
+                : `<div class="scan-box">
+                       <div class="scan-line"></div>
+                       <div class="scan-box-corners"></div>
+                       <div class="scan-box-corners-extra"></div>
+                       <div class="scan-eye"></div>
+                   </div>`;
+
             document.getElementById('verifying-card').innerHTML = `
                 <div class="verifying-glow"></div>
-                <div class="scan-box">
-                    <div class="scan-line"></div>
-                    <div class="scan-box-corners"></div>
-                    <div class="scan-box-corners-extra"></div>
-                    <div class="scan-eye"></div>
-                </div>
+                ${visualBlock}
                 <div class="verifying-title">Trio is watching your stream...</div>
                 <div class="verifying-sub">Analyzing video feed for task completion</div>
                 <div class="verifying-condition">"${t.condition}"</div>
@@ -1154,6 +1229,7 @@
                 return;
             }
 
+            streamUrl = url;
             goToStep(4);
 
             try {
