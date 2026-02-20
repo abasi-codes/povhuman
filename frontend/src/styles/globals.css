@@ -710,6 +710,7 @@ select.field-input {
 .evt-type.job_restarted { color: var(--amber); }
 .evt-type.task_cancelled { color: var(--text2); }
 .evt-type.task_failed { color: var(--red); }
+.evt-type.chain_receipt { color: var(--cyan); }
 
 .evt-desc {
   font-size: 11px;
@@ -1053,6 +1054,51 @@ select.field-input {
   font-variant-numeric: tabular-nums;
 }
 .hash-pending {
+  font-size: 10px;
+  color: var(--text4);
+  font-style: italic;
+}
+
+/* === CHAIN / 0G === */
+.chain-display {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.chain-link {
+  font-size: 10px;
+  color: var(--amber);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+  display: block;
+  margin-bottom: 6px;
+}
+.chain-link:hover {
+  text-decoration: underline;
+}
+.chain-badge {
+  font-size: 9px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  display: inline-block;
+}
+.zg-badge {
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  padding: 1px 5px;
+  border-radius: 2px;
+  background: var(--cyan-dim);
+  color: var(--cyan);
+  line-height: 1;
+}
+.chain-pending {
   font-size: 10px;
   color: var(--text4);
   font-style: italic;

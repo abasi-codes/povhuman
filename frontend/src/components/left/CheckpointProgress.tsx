@@ -66,6 +66,9 @@ export function CheckpointProgress() {
                   {isVerified && cp.verified_at && (
                     <span className="pipe-time">{formatTime(cp.verified_at)}</span>
                   )}
+                  {isVerified && cp.evidence_zg_root && (
+                    <span className="zg-badge">0G</span>
+                  )}
                   {isActive && (
                     <span style={{ color: "var(--text4)" }}>
                       Awaiting verification...

@@ -77,6 +77,13 @@ export function EvidenceViewer() {
           <><strong>Captured:</strong> {formatTime(latest.verified_at)} UTC<br /></>
         )}
         <strong>Redaction:</strong> blur_faces applied
+        {latest.evidence_zg_root && (
+          <><br /><strong>Storage:</strong>{" "}
+            <span style={{ color: "var(--amber)", fontFamily: "var(--fm)" }}>
+              0G &mdash; {latest.evidence_zg_root.slice(0, 12)}...{latest.evidence_zg_root.slice(-8)}
+            </span>
+          </>
+        )}
       </div>
     </div>
   );

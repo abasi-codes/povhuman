@@ -18,6 +18,7 @@ function typeLabel(type: string): string {
     case "task_cancelled": return "Task Cancelled";
     case "task_failed": return "Task Failed";
     case "job_restarted": return "Job Restarted";
+    case "chain_receipt": return "Chain Receipt";
     default: return type.replace(/_/g, " ").replace(/\b\w/g, (c) => c.toUpperCase());
   }
 }

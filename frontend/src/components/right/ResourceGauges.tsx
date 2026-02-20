@@ -46,6 +46,29 @@ export function ResourceGauges() {
           </div>
         )}
       </div>
+
+      {task?.status === "completed" && (
+        <div className="chain-display">
+          <div className="hash-label">On-Chain Receipt</div>
+          {task.tx_hash ? (
+            <>
+              <a
+                className="chain-link"
+                href={`https://chainscan-galileo.0g.ai/tx/${task.tx_hash}`}
+                target="_blank"
+                rel="noopener noreferrer"
+              >
+                {task.tx_hash.slice(0, 10)}...{task.tx_hash.slice(-8)}
+              </a>
+              <span className="chain-badge">0G Galileo &middot; 16602</span>
+            </>
+          ) : (
+            <div className="chain-pending">
+              Pending &mdash; posting to 0G Chain...
+            </div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

@@ -26,6 +26,7 @@ export interface CheckpointInfo {
   verified_at: string | null;
   confidence: number | null;
   evidence_explanation: string | null;
+  evidence_zg_root: string | null;
 }
 
 export interface JobInfo {
@@ -43,6 +44,7 @@ export interface TaskDetail {
   stream_url: string | null;
   human_id: string | null;
   verification_hash: string | null;
+  tx_hash: string | null;
   max_duration_seconds: number;
   created_at: string;
   started_at: string | null;
