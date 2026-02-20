@@ -25,7 +25,8 @@ export function initDatabase(dbPath: string): Database.Database {
       updated_at TEXT NOT NULL DEFAULT (datetime('now')),
       started_at TEXT,
       completed_at TEXT,
-      expires_at TEXT
+      expires_at TEXT,
+      tx_hash TEXT
     );
 
     CREATE TABLE IF NOT EXISTS checkpoints (
@@ -44,7 +45,8 @@ export function initDatabase(dbPath: string): Database.Database {
       evidence_explanation TEXT,
       confidence REAL,
       metadata TEXT NOT NULL DEFAULT '{}',
-      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+      created_at TEXT NOT NULL DEFAULT (datetime('now')),
+      evidence_zg_root TEXT
     );
 
     CREATE TABLE IF NOT EXISTS trio_jobs (
@@ -75,7 +77,8 @@ export function initDatabase(dbPath: string): Database.Database {
       evidence_frame_b64 TEXT,
       metadata TEXT NOT NULL DEFAULT '{}',
       created_at TEXT NOT NULL DEFAULT (datetime('now')),
-      expires_at TEXT
+      expires_at TEXT,
+      evidence_zg_root TEXT
     );
 
     CREATE TABLE IF NOT EXISTS agent_keys (
@@ -93,6 +96,16 @@ export function initDatabase(dbPath: string): Database.Database {
     CREATE INDEX IF NOT EXISTS idx_events_expires ON verification_events(expires_at);
     CREATE INDEX IF NOT EXISTS idx_agent_keys_agent ON agent_keys(agent_id);
   `);
+
+  // Migrations for existing databases
+  const migrations = [
+    "ALTER TABLE tasks ADD COLUMN tx_hash TEXT",
+    "ALTER TABLE checkpoints ADD COLUMN evidence_zg_root TEXT",
+    "ALTER TABLE verification_events ADD COLUMN evidence_zg_root TEXT",
+  ];
+  for (const sql of migrations) {
+    try { db.exec(sql); } catch { /* column already exists */ }
+  }
 
   logger.info({ dbPath }, "Database initialized");
   return db;
@@ -118,6 +131,7 @@ export interface TaskRow {
   started_at: string | null;
   completed_at: string | null;
   expires_at: string | null;
+  tx_hash: string | null;
 }
 
 export interface CheckpointRow {
@@ -136,6 +150,7 @@ export interface CheckpointRow {
   confidence: number | null;
   metadata: string;
   created_at: string;
+  evidence_zg_root: string | null;
 }
 
 export interface TrioJobRow {
@@ -167,6 +182,7 @@ export interface VerificationEventRow {
   metadata: string;
   created_at: string;
   expires_at: string | null;
+  evidence_zg_root: string | null;
 }
 
 export interface AgentKeyRow {

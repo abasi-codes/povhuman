@@ -51,4 +51,15 @@ export const config = {
     eventHours: parseInt(optional("EVENT_RETENTION_HOURS", "72"), 10),
     frameMinutes: parseInt(optional("FRAME_RETENTION_MINUTES", "60"), 10),
   },
+
+  zeroG: {
+    storageEnabled: optional("ZG_STORAGE_ENABLED", "false") === "true",
+    chainEnabled: optional("ZG_CHAIN_ENABLED", "false") === "true",
+    privateKey: process.env.ZG_PRIVATE_KEY || "",
+    rpcUrl: optional("ZG_RPC_URL", "https://evmrpc-testnet.0g.ai"),
+    indexerUrl: optional("ZG_INDEXER_URL", "https://indexer-storage-testnet-turbo.0g.ai"),
+    contractAddress: process.env.ZG_CONTRACT_ADDRESS || "",
+    chainId: parseInt(optional("ZG_CHAIN_ID", "16602"), 10),
+    explorerUrl: optional("ZG_EXPLORER_URL", "https://chainscan-galileo.0g.ai"),
+  },
 } as const;

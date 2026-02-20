@@ -8,3 +8,6 @@ coverage/
 .claude/
 .vercel
 .env*.local
+artifacts/
+cache/
+typechain-types/

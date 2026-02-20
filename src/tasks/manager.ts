@@ -11,6 +11,9 @@ import type { TaskConfig, TaskStatus } from "./types.js";
 import { DEFAULT_REDACTION_POLICY } from "./types.js";
 import type { TaskRow, CheckpointRow, TrioJobRow } from "../db/schema.js";
 import type { InputMode } from "../trio/types.js";
+import type { ZgStorageClient } from "../storage/zg-client.js";
+import type { ZgChainClient } from "../chain/client.js";
+import type { ChainReceipt } from "../chain/types.js";
 
 export class TaskManager {
   private db: Database.Database;
@@ -19,6 +22,8 @@ export class TaskManager {
   private agentDelivery: AgentDelivery;
   private evidenceCapture: EvidenceCaptureService;
   private webhookBaseUrl: string;
+  private zgStorage?: ZgStorageClient;
+  private zgChain?: ZgChainClient;
 
   private stmts: ReturnType<typeof this.prepareStatements>;
 
@@ -29,6 +34,8 @@ export class TaskManager {
     agentDelivery: AgentDelivery,
     evidenceCapture: EvidenceCaptureService,
     webhookBaseUrl: string,
+    zgStorage?: ZgStorageClient,
+    zgChain?: ZgChainClient,
   ) {
     this.db = db;
     this.trio = trio;
@@ -36,6 +43,8 @@ export class TaskManager {
     this.agentDelivery = agentDelivery;
     this.evidenceCapture = evidenceCapture;
     this.webhookBaseUrl = webhookBaseUrl;
+    this.zgStorage = zgStorage;
+    this.zgChain = zgChain;
     this.stmts = this.prepareStatements();
   }
 
@@ -115,7 +124,16 @@ export class TaskManager {
         LIMIT ?
       `),
       getEventFrame: this.db.prepare(`
-        SELECT evidence_frame_b64 FROM verification_events WHERE event_id = ?
+        SELECT evidence_frame_b64, evidence_zg_root FROM verification_events WHERE event_id = ?
+      `),
+      updateCheckpointZgRoot: this.db.prepare(`
+        UPDATE checkpoints SET evidence_zg_root = ? WHERE checkpoint_id = ?
+      `),
+      updateEventZgRoot: this.db.prepare(`
+        UPDATE verification_events SET evidence_zg_root = ? WHERE event_id = ?
+      `),
+      updateTaskTxHash: this.db.prepare(`
+        UPDATE tasks SET tx_hash = ?, updated_at = datetime('now') WHERE task_id = ?
       `),
     };
   }
@@ -291,6 +309,12 @@ export class TaskManager {
           null,
         );
 
+        // Upload evidence to 0G Storage (async, non-blocking)
+        if (evidence.frame_b64 && this.zgStorage?.isEnabled) {
+          this.uploadToZg(result.checkpoint_id, job.task_id, eventId, evidence.frame_b64)
+            .catch((err) => logger.error({ err, checkpointId: result.checkpoint_id }, "0G upload error"));
+        }
+
         // Deliver to agent
         this.agentDelivery.deliverEvent(task.webhook_url, {
           event_id: eventId,
@@ -352,6 +376,30 @@ export class TaskManager {
 
     this.stmts.updateTaskCompleted.run(verificationHash, taskId);
 
+    // Post verification hash on-chain (with timeout)
+    let txHash: string | null = null;
+    let chainReceipt: ChainReceipt | null = null;
+
+    if (this.zgChain) {
+      const verifiedCount = checkpoints.filter((cp) => cp.verified).length;
+      try {
+        chainReceipt = await Promise.race([
+          this.zgChain.recordVerification(taskId, verificationHash, verifiedCount),
+          new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
+        ]);
+        txHash = chainReceipt.tx_hash;
+        this.stmts.updateTaskTxHash.run(txHash, taskId);
+      } catch (err) {
+        logger.warn({ err, taskId }, "Chain posting failed, retrying async");
+        this.retryChainPosting(taskId, verificationHash, checkpoints.filter((cp) => cp.verified).length, task.webhook_url);
+      }
+    }
+
+    // Collect 0G evidence roots for completed checkpoints
+    const evidenceRoots = checkpoints
+      .filter((cp) => cp.verified && cp.evidence_zg_root)
+      .map((cp) => ({ checkpoint_id: cp.checkpoint_id, zg_root: cp.evidence_zg_root }));
+
     // Record and deliver completion event
     const eventId = nanoid(12);
     this.stmts.insertEvent.run(
@@ -361,16 +409,29 @@ export class TaskManager {
       null,
     );
 
+    const completionMetadata: Record<string, unknown> = {
+      checkpoints_verified: checkpoints.filter((cp) => cp.verified).length,
+      checkpoints_total: checkpoints.length,
+    };
+
+    if (txHash) {
+      completionMetadata.tx_hash = txHash;
+      completionMetadata.chain_id = chainReceipt!.chain_id;
+      completionMetadata.contract_address = chainReceipt!.contract_address;
+      completionMetadata.explorer_url = chainReceipt!.explorer_url;
+    }
+
+    if (evidenceRoots.length > 0) {
+      completionMetadata.evidence_roots = evidenceRoots;
+    }
+
     this.agentDelivery.deliverEvent(task.webhook_url, {
       event_id: eventId,
       task_id: taskId,
       event_type: "task_completed",
       timestamp: new Date().toISOString(),
       verification_hash: verificationHash,
-      metadata: {
-        checkpoints_verified: checkpoints.filter((cp) => cp.verified).length,
-        checkpoints_total: checkpoints.length,
-      },
+      metadata: completionMetadata,
     }).catch((err) => {
       logger.error({ err, taskId }, "Failed to deliver task_completed event");
     });
@@ -489,12 +550,101 @@ export class TaskManager {
     return job?.task_id ?? null;
   }
 
+  getEventZgRoot(eventId: string): string | null {
+    const row = this.stmts.getEventFrame.get(eventId) as { evidence_frame_b64: string | null; evidence_zg_root: string | null } | undefined;
+    return row?.evidence_zg_root ?? null;
+  }
+
+  getZgStorage(): ZgStorageClient | undefined {
+    return this.zgStorage;
+  }
+
+  getZgChain(): ZgChainClient | undefined {
+    return this.zgChain;
+  }
+
   getEvents(taskId: string, limit: number) {
     return this.stmts.getEvents.all(taskId, limit);
   }
 
   getEventFrame(eventId: string): string | null {
-    const row = this.stmts.getEventFrame.get(eventId) as { evidence_frame_b64: string | null } | undefined;
+    const row = this.stmts.getEventFrame.get(eventId) as { evidence_frame_b64: string | null; evidence_zg_root: string | null } | undefined;
     return row?.evidence_frame_b64 ?? null;
+  }
+
+  private async uploadToZg(
+    checkpointId: string,
+    taskId: string,
+    eventId: string,
+    frameB64: string,
+  ): Promise<void> {
+    if (!this.zgStorage) return;
+
+    const result = await this.zgStorage.uploadFrame(frameB64, { checkpoint_id: checkpointId, task_id: taskId });
+    if (result) {
+      this.stmts.updateCheckpointZgRoot.run(result.merkle_root, checkpointId);
+      this.stmts.updateEventZgRoot.run(result.merkle_root, eventId);
+      logger.info({ checkpointId, merkleRoot: result.merkle_root }, "0G root stored");
+    }
+  }
+
+  private retryChainPosting(
+    taskId: string,
+    verificationHash: string,
+    checkpointCount: number,
+    webhookUrl: string,
+  ): void {
+    const delays = [2000, 4000, 8000];
+    let attempt = 0;
+
+    const tryPost = async () => {
+      if (!this.zgChain) return;
+      attempt++;
+      try {
+        const receipt = await this.zgChain.recordVerification(taskId, verificationHash, checkpointCount);
+        this.stmts.updateTaskTxHash.run(receipt.tx_hash, taskId);
+
+        // Deliver chain_receipt event to agent
+        const eventId = nanoid(12);
+        this.stmts.insertEvent.run(
+          eventId, taskId, null, null,
+          "chain_receipt", null, "Verification recorded on-chain",
+          null, JSON.stringify({
+            tx_hash: receipt.tx_hash,
+            block_number: receipt.block_number,
+            chain_id: receipt.chain_id,
+            explorer_url: receipt.explorer_url,
+          }),
+          null,
+        );
+
+        this.agentDelivery.deliverEvent(webhookUrl, {
+          event_id: eventId,
+          task_id: taskId,
+          event_type: "chain_receipt",
+          timestamp: new Date().toISOString(),
+          metadata: {
+            tx_hash: receipt.tx_hash,
+            block_number: receipt.block_number,
+            contract_address: receipt.contract_address,
+            chain_id: receipt.chain_id,
+            explorer_url: receipt.explorer_url,
+          },
+        }).catch((err) => {
+          logger.error({ err, taskId }, "Failed to deliver chain_receipt event");
+        });
+
+        logger.info({ taskId, txHash: receipt.tx_hash, attempt }, "Chain posting succeeded on retry");
+      } catch (err) {
+        if (attempt < delays.length) {
+          logger.warn({ err, taskId, attempt }, "Chain retry failed, scheduling next");
+          setTimeout(tryPost, delays[attempt]);
+        } else {
+          logger.error({ err, taskId }, "All chain retries exhausted, tx_hash stays null");
+        }
+      }
+    };
+
+    setTimeout(tryPost, delays[0]);
   }
 }

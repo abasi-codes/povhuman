@@ -2,6 +2,7 @@ import { Hono } from "hono";
 import { z } from "zod";
 import type { TaskManager } from "../tasks/manager.js";
 import { CHECKPOINT_TEMPLATES } from "../checkpoints/types.js";
+import { config } from "../config.js";
 
 // --- Zod schemas ---
 
@@ -104,6 +105,7 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
       stream_url: task.stream_url,
       human_id: task.human_id,
       verification_hash: task.verification_hash,
+      tx_hash: task.tx_hash,
       max_duration_seconds: task.max_duration_seconds,
       created_at: task.created_at,
       started_at: task.started_at,
@@ -120,6 +122,7 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
         verified_at: cp.verified_at,
         confidence: cp.confidence,
         evidence_explanation: cp.evidence_explanation,
+        evidence_zg_root: cp.evidence_zg_root,
       })),
       active_jobs: jobs.length,
       jobs: jobs.map((j) => ({
@@ -188,6 +191,47 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
     return c.json({ events });
   });
 
+  // --- On-chain verification lookup ---
+  app.get("/:id/verify", async (c) => {
+    const taskId = c.req.param("id");
+    const task = taskManager.getTask(taskId);
+    if (!task) return c.json({ error: "Task not found", code: "NOT_FOUND" }, 404);
+
+    const result: Record<string, unknown> = {
+      task_id: task.task_id,
+      verification_hash: task.verification_hash,
+      tx_hash: task.tx_hash,
+    };
+
+    if (task.tx_hash) {
+      result.chain = {
+        chain_id: config.zeroG.chainId,
+        contract_address: config.zeroG.contractAddress,
+        explorer_url: `${config.zeroG.explorerUrl}/tx/${task.tx_hash}`,
+      };
+    }
+
+    // If chain client available, do live on-chain lookup
+    const zgChain = taskManager.getZgChain();
+    if (zgChain && task.verification_hash) {
+      try {
+        const onChain = await zgChain.verifyTask(taskId);
+        if (onChain) {
+          result.on_chain = {
+            verification_hash: onChain.verificationHash,
+            checkpoint_count: onChain.checkpointCount,
+            timestamp: onChain.timestamp,
+            matches: onChain.verificationHash === task.verification_hash,
+          };
+        }
+      } catch {
+        // On-chain lookup is best-effort
+      }
+    }
+
+    return c.json(result);
+  });
+
   // --- Get checkpoint statuses ---
   app.get("/:id/checkpoints", (c) => {
     const taskId = c.req.param("id");
@@ -208,6 +252,7 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
         verified_at: cp.verified_at,
         confidence: cp.confidence,
         evidence_explanation: cp.evidence_explanation,
+        evidence_zg_root: cp.evidence_zg_root,
       })),
     });
   });

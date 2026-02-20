@@ -27,6 +27,8 @@ import { requestLogger } from "./middleware/request-logger.js";
 import { createMetricsRoutes, incrementCounter } from "./routes/metrics.js";
 import { DEFAULT_REDACTION_POLICY } from "./tasks/types.js";
 import type { AnyWebhookPayload, MonitorTriggeredPayload, JobStatusPayload } from "./trio/types.js";
+import { ZgStorageClient } from "./storage/zg-client.js";
+import { ZgChainClient } from "./chain/client.js";
 
 // --- Initialize dependencies ---
 
@@ -41,6 +43,23 @@ const evidenceCapture = new EvidenceCaptureService(
 
 const webhookBaseUrl = `http://${config.server.host === "0.0.0.0" ? "localhost" : config.server.host}:${config.server.port}`;
 
+const zgStorage = new ZgStorageClient(
+  config.zeroG.storageEnabled
+    ? { rpcUrl: config.zeroG.rpcUrl, indexerUrl: config.zeroG.indexerUrl, privateKey: config.zeroG.privateKey }
+    : null,
+);
+
+let zgChain: ZgChainClient | undefined;
+if (config.zeroG.chainEnabled && config.zeroG.privateKey && config.zeroG.contractAddress) {
+  zgChain = new ZgChainClient({
+    rpcUrl: config.zeroG.rpcUrl,
+    privateKey: config.zeroG.privateKey,
+    contractAddress: config.zeroG.contractAddress,
+    chainId: config.zeroG.chainId,
+    explorerUrl: config.zeroG.explorerUrl,
+  });
+}
+
 const taskManager = new TaskManager(
   db,
   trio,
@@ -48,6 +67,8 @@ const taskManager = new TaskManager(
   agentDelivery,
   evidenceCapture,
   webhookBaseUrl,
+  zgStorage,
+  zgChain,
 );
 
 // --- Seed demo tasks ---
