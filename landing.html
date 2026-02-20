@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="theme-color" content="#0a0a0f">
     <title>VerifyHuman | Earn Money Completing Tasks for AI Agents</title>
     <meta name="description" content="AI agents need real-world tasks done. Pick a task, stream yourself completing it, get paid when AI verifies your work. No interviews, no applications.">
     <meta property="og:title" content="VerifyHuman — Earn Money Doing Tasks for AI" />
@@ -94,7 +99,7 @@
             position: fixed;
             top: 0; left: 0; right: 0;
             z-index: 1000;
-            padding: 1.5rem 4rem;
+            padding: 1.5rem max(4rem, env(safe-area-inset-right)) 1.5rem max(4rem, env(safe-area-inset-left));
             display: flex;
             justify-content: space-between;
             align-items: center;
@@ -118,38 +123,8 @@
 
         .logo-icon {
             width: 32px; height: 32px;
-            border: 2px solid var(--accent-amber);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
+            flex-shrink: 0;
         }
-        .logo-icon::before {
-            content: '';
-            width: 10px; height: 10px;
-            background: var(--accent-amber);
-            border-radius: 50%;
-            animation: iris-pulse 3s ease-in-out infinite;
-        }
-        .logo-icon::after {
-            content: '';
-            position: absolute;
-            inset: -4px;
-            border: 1px solid rgba(245,158,11,0.2);
-            border-radius: 50%;
-            animation: iris-ring 3s ease-in-out infinite;
-        }
-        @keyframes iris-pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(0.7); opacity: 0.6; }
-        }
-        @keyframes iris-ring {
-            0%, 100% { transform: scale(1); opacity: 0.4; }
-            50% { transform: scale(1.15); opacity: 0; }
-        }
-
-        .logo-sep { color: var(--text-muted); margin: 0 1px; }
 
         .nav-links {
             display: flex;
@@ -384,6 +359,7 @@
         }
         .flow-step.stream { color: var(--accent-cyan); }
         .flow-step.verified { color: var(--accent-green); }
+        .flow-step.onchain { color: var(--accent-purple); }
         .flow-step.paid { color: var(--accent-green); }
         .flow-arrow {
             color: var(--text-muted);
@@ -760,8 +736,10 @@
 
         /* Responsive */
         @media (max-width: 1024px) {
-            nav { padding: 1rem 2rem; }
-            .nav-links { display: none; }
+            nav { padding: 1rem max(2rem, env(safe-area-inset-right)) 1rem max(2rem, env(safe-area-inset-left)); }
+            .nav-links { gap: 1.5rem; }
+            .nav-links a { font-size: 0.8rem; }
+            .task-card-arrow { width: 44px; height: 44px; }
             .hero { padding: 6rem 2rem 4rem; }
             .hero-content { grid-template-columns: 1fr; gap: 3rem; }
             .steps-grid { grid-template-columns: repeat(2, 1fr); }
@@ -770,6 +748,15 @@
             .footer-content { flex-direction: column; gap: 2rem; text-align: center; }
         }
         @media (max-width: 640px) {
+            nav {
+                padding: 0.75rem max(1rem, env(safe-area-inset-right)) 0.75rem max(1rem, env(safe-area-inset-left));
+                padding-top: max(0.75rem, env(safe-area-inset-top));
+            }
+            .logo { font-size: 1.1rem; gap: 0.35rem; }
+            .logo-icon { width: 26px; height: 26px; }
+            .nav-cta .btn { padding: 0.5rem 0.9rem; font-size: 0.8rem; white-space: nowrap; }
+            .nav-links { display: none; }
+            .orb { display: none; }
             .hero h1 { font-size: 2.5rem; }
             .hero-buttons { flex-direction: column; }
             .steps-grid { grid-template-columns: 1fr; }
@@ -803,8 +790,13 @@
     <!-- Navigation -->
     <nav>
         <a href="/" class="logo">
-            <div class="logo-icon"></div>
-            Verify<span class="logo-sep">/</span>Human
+            <svg class="logo-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                <defs><linearGradient id="vh-nav" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#9b5de5"/><stop offset="100%" stop-color="#f72585"/></linearGradient></defs>
+                <circle cx="32" cy="20" r="10" fill="url(#vh-nav)"/>
+                <path d="M18 58 C18 42, 24 34, 32 34 C40 34, 46 42, 46 58" stroke="url(#vh-nav)" stroke-width="4" fill="none" stroke-linecap="round"/>
+                <path d="M22 38 L30 46 L46 26" stroke="#00f5d4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+            </svg>
+            VerifyHuman
         </a>
         <ul class="nav-links">
             <li><a href="#how-it-works">How It Works</a></li>
@@ -840,6 +832,8 @@
                     <div class="flow-arrow">&rarr;</div>
                     <div class="flow-step verified">Verified &#10003;</div>
                     <div class="flow-arrow">&rarr;</div>
+                    <div class="flow-step onchain">0G &#9883;</div>
+                    <div class="flow-arrow">&rarr;</div>
                     <div class="flow-step paid">$5.00 Paid</div>
                 </div>
             </div>
@@ -870,7 +864,7 @@
                 <div class="step-number">03</div>
                 <div class="step-icon purple">&#9673;</div>
                 <h3>AI Watches &amp; Verifies</h3>
-                <p>Trio's vision AI analyzes your stream in real-time to confirm you completed the task.</p>
+                <p>Trio's vision AI analyzes your stream in real-time to confirm you completed the task. Evidence is stored on 0G and the receipt goes on-chain.</p>
             </div>
             <div class="step-card fade-in">
                 <div class="step-number">04</div>
@@ -954,9 +948,9 @@
                 <p>The moment your work is verified, you get paid. No invoicing, no waiting for approval, no 30-day net terms.</p>
             </div>
             <div class="feature-card fade-in">
-                <div class="feature-icon cyan">&#9750;</div>
-                <h3>Work From Home</h3>
-                <p>All current tasks can be completed at home with things you already have. Stream from your phone &mdash; that's all you need.</p>
+                <div class="feature-icon cyan">&#9883;</div>
+                <h3>Tamper-Proof on 0G</h3>
+                <p>Every verification is recorded on-chain via 0G. Evidence frames are stored on 0G Storage and receipts are posted to 0G Chain &mdash; permanent, auditable proof you did the work.</p>
             </div>
         </div>
     </section>

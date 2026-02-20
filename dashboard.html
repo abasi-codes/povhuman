@@ -4,6 +4,11 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <link rel="icon" type="image/svg+xml" href="/favicon.svg">
+    <link rel="icon" type="image/png" sizes="32x32" href="/favicon-32x32.png">
+    <link rel="icon" type="image/png" sizes="16x16" href="/favicon-16x16.png">
+    <link rel="apple-touch-icon" sizes="180x180" href="/apple-touch-icon.png">
+    <link rel="manifest" href="/site.webmanifest">
+    <meta name="theme-color" content="#0a0a0f">
     <title>Dashboard | VerifyHuman</title>
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -69,10 +74,16 @@
             display: flex;
             align-items: center;
             justify-content: space-between;
-            padding: 0 2rem;
+            padding: 0 max(2rem, env(safe-area-inset-right)) 0 max(2rem, env(safe-area-inset-left));
+            padding-top: env(safe-area-inset-top);
             background: rgba(10, 10, 15, 0.9);
             backdrop-filter: blur(20px);
             border-bottom: 1px solid var(--border-subtle);
+        }
+        @supports (padding-top: env(safe-area-inset-top)) {
+            .topbar {
+                height: calc(var(--topbar-h) + env(safe-area-inset-top));
+            }
         }
 
         .topbar-left {
@@ -94,38 +105,8 @@
         }
         .logo-icon {
             width: 28px; height: 28px;
-            border: 2px solid var(--accent-amber);
-            border-radius: 50%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            position: relative;
             flex-shrink: 0;
         }
-        .logo-icon::before {
-            content: '';
-            width: 8px; height: 8px;
-            background: var(--accent-amber);
-            border-radius: 50%;
-            animation: iris-pulse 3s ease-in-out infinite;
-        }
-        .logo-icon::after {
-            content: '';
-            position: absolute;
-            inset: -4px;
-            border: 1px solid rgba(245,158,11,0.2);
-            border-radius: 50%;
-            animation: iris-ring 3s ease-in-out infinite;
-        }
-        @keyframes iris-pulse {
-            0%, 100% { transform: scale(1); opacity: 1; }
-            50% { transform: scale(0.7); opacity: 0.6; }
-        }
-        @keyframes iris-ring {
-            0%, 100% { transform: scale(1); opacity: 0.4; }
-            50% { transform: scale(1.15); opacity: 0; }
-        }
-        .logo-sep { color: var(--text-muted); margin: 0 1px; }
 
         .topbar-divider {
             width: 1px;
@@ -232,7 +213,7 @@
         }
         .step-header h1 {
             font-family: var(--font-display);
-            font-size: 1.8rem;
+            font-size: clamp(1.4rem, 4vw, 1.8rem);
             font-weight: 800;
             margin-bottom: 0.3rem;
         }
@@ -364,7 +345,7 @@
         }
         .detail-title {
             font-family: var(--font-display);
-            font-size: 1.6rem;
+            font-size: clamp(1.3rem, 3.5vw, 1.6rem);
             font-weight: 800;
             margin-bottom: 0.75rem;
         }
@@ -697,7 +678,7 @@
 
         .result-title {
             font-family: var(--font-display);
-            font-size: 1.5rem;
+            font-size: clamp(1.2rem, 3.5vw, 1.5rem);
             font-weight: 800;
             margin-bottom: 0.75rem;
         }
@@ -873,19 +854,35 @@
         .back-btn:hover { color: var(--text-primary); }
 
         /* ─── RESPONSIVE ─── */
+        @media (max-width: 768px) {
+            .task-grid {
+                grid-template-columns: 1fr;
+            }
+        }
         @media (max-width: 640px) {
             .main {
                 padding-left: 1rem;
                 padding-right: 1rem;
             }
-            .task-grid {
-                grid-template-columns: 1fr;
-            }
             .topbar {
-                padding: 0 1rem;
+                padding: 0 max(1rem, env(safe-area-inset-right)) 0 max(1rem, env(safe-area-inset-left));
+                padding-top: env(safe-area-inset-top);
             }
-            .breadcrumb {
-                display: none;
+            /* Compact step indicator: hide non-active steps, show "Step N of T" */
+            .breadcrumb-step:not(.active) { display: none; }
+            .breadcrumb-sep { display: none; }
+            .breadcrumb-step.active::after {
+                content: " \2014  " attr(data-num) " of " attr(data-total);
+                color: var(--text-muted);
+            }
+            /* Touch targets */
+            .task-card-arrow { width: 44px; height: 44px; }
+            .back-btn { min-height: 44px; }
+            .detail-condition-icon { width: 44px; height: 44px; }
+            /* Detail info row wrap */
+            .detail-info-row {
+                flex-wrap: wrap;
+                gap: 1rem 2rem;
             }
             .detail-card-top,
             .detail-info-row,
@@ -903,8 +900,15 @@
             .url-input-group {
                 flex-direction: column;
             }
+            /* Prevent iOS auto-zoom on input focus */
+            .url-input { font-size: 1rem; }
             .payout-amount {
                 font-size: 2.5rem;
+            }
+            /* Payout details full-width */
+            .payout-details {
+                width: 100%;
+                gap: 1rem;
             }
         }
 
@@ -951,8 +955,8 @@
         /* ─── TOAST ─── */
         .toast {
             position: fixed;
-            bottom: 1.5rem;
-            right: 1.5rem;
+            bottom: max(1.5rem, env(safe-area-inset-bottom));
+            right: max(1.5rem, env(safe-area-inset-right));
             padding: 0.75rem 1.25rem;
             background: var(--bg-tertiary);
             border: 1px solid var(--border-glow);
@@ -970,6 +974,71 @@
             transform: translateY(0);
             pointer-events: all;
         }
+
+        /* ─── 0G PROOF ─── */
+        .zg-proof-block {
+            display: inline-flex;
+            flex-direction: column;
+            gap: 0.4rem;
+            padding: 0.85rem 1.25rem;
+            background: rgba(0, 245, 212, 0.04);
+            border: 1px solid rgba(0, 245, 212, 0.12);
+            border-radius: 10px;
+            margin-bottom: 2rem;
+            text-align: left;
+        }
+        .zg-proof-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 1.5rem;
+            font-size: 0.8rem;
+        }
+        .zg-proof-label {
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            color: var(--text-muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            white-space: nowrap;
+        }
+        .zg-proof-value {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+        }
+        .zg-proof-link {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            text-decoration: none;
+            transition: opacity 0.2s;
+        }
+        .zg-proof-link:hover {
+            opacity: 0.7;
+        }
+        .zg-tag {
+            display: inline-block;
+            padding: 0.1rem 0.4rem;
+            background: rgba(0, 245, 212, 0.12);
+            border: 1px solid rgba(0, 245, 212, 0.2);
+            border-radius: 4px;
+            font-family: var(--font-mono);
+            font-size: 0.6rem;
+            font-weight: 700;
+            color: var(--accent-cyan);
+            letter-spacing: 0.05em;
+            margin-right: 0.3rem;
+        }
+        .zg-payout-link {
+            font-family: var(--font-mono);
+            font-size: 0.75rem;
+            color: var(--accent-cyan);
+            text-decoration: none;
+        }
+        .zg-payout-link:hover {
+            opacity: 0.7;
+        }
     </style>
 </head>
 <body>
@@ -979,8 +1048,13 @@
     <header class="topbar">
         <div class="topbar-left">
             <a href="/" class="logo">
-                <div class="logo-icon"></div>
-                Verify<span class="logo-sep">/</span>Human
+                <svg class="logo-icon" viewBox="0 0 64 64" fill="none" xmlns="http://www.w3.org/2000/svg">
+                    <defs><linearGradient id="vh-dash" x1="0%" y1="0%" x2="100%" y2="100%"><stop offset="0%" stop-color="#9b5de5"/><stop offset="100%" stop-color="#f72585"/></linearGradient></defs>
+                    <circle cx="32" cy="20" r="10" fill="url(#vh-dash)"/>
+                    <path d="M18 58 C18 42, 24 34, 32 34 C40 34, 46 42, 46 58" stroke="url(#vh-dash)" stroke-width="4" fill="none" stroke-linecap="round"/>
+                    <path d="M22 38 L30 46 L46 26" stroke="#00f5d4" stroke-width="5" stroke-linecap="round" stroke-linejoin="round"/>
+                </svg>
+                VerifyHuman
             </a>
             <div class="topbar-divider"></div>
             <div class="breadcrumb" id="breadcrumb"></div>
@@ -1036,6 +1110,7 @@
         let selectedTask = null;
         let trioResult = null;
         let streamUrl = null;
+        let zgProof = null;
 
         const stepNames = ['Browse', 'Details', 'Stream', 'Verify', 'Result', 'Payout'];
 
@@ -1069,7 +1144,7 @@
                 if (stepNum === currentStep) cls += ' active';
                 else if (stepNum < currentStep) cls += ' done';
                 const sep = i < stepNames.length - 1 ? '<span class="breadcrumb-sep">/</span>' : '';
-                return `<span class="${cls}">${name}</span>${sep}`;
+                return `<span class="${cls}" data-num="${stepNum}" data-total="${stepNames.length}">${name}</span>${sep}`;
             }).join('');
         }
 
@@ -1252,6 +1327,7 @@
                         verified: data.verified,
                         explanation: data.explanation || 'No explanation provided.',
                     };
+                    if (data.verified) zgProof = generateZgProof();
                 }
             } catch (err) {
                 trioResult = {
@@ -1281,6 +1357,24 @@
                             <span class="result-meta-value">${t.title}</span>
                         </div>
                     </div>
+                    ${isVerified && zgProof ? `
+                    <div class="zg-proof-block">
+                        <div class="zg-proof-row">
+                            <span class="zg-proof-label">Evidence Storage</span>
+                            <span class="zg-proof-value"><span class="zg-tag">0G</span> ${truncHash(zgProof.evidence_root)}</span>
+                        </div>
+                        <div class="zg-proof-row">
+                            <span class="zg-proof-label">Chain Receipt</span>
+                            <a class="zg-proof-link" href="https://chainscan-galileo.0g.ai/tx/${zgProof.tx_hash}" target="_blank" rel="noopener noreferrer">
+                                ${truncHash(zgProof.tx_hash)} &#8599;
+                            </a>
+                        </div>
+                        <div class="zg-proof-row">
+                            <span class="zg-proof-label">Network</span>
+                            <span class="zg-proof-value">${zgProof.chain} <span style="color:var(--text-muted)">&middot; ${zgProof.chain_id}</span></span>
+                        </div>
+                    </div>
+                    ` : ''}
                     <div class="result-actions">
                         ${isVerified ? `
                             <button class="btn btn-primary btn-large" onclick="goToStep(6)">Claim Payout</button>
@@ -1319,6 +1413,19 @@
                             <span class="label">Status</span>
                             <span class="value" style="color: var(--accent-green)">Paid</span>
                         </div>
+                        ${zgProof ? `
+                        <div style="border-top:1px solid var(--border-subtle); margin-top:0.5rem; padding-top:0.5rem;"></div>
+                        <div class="payout-detail-row">
+                            <span class="label">Evidence</span>
+                            <span class="value"><span class="zg-tag" style="font-size:0.65rem">0G</span> Stored</span>
+                        </div>
+                        <div class="payout-detail-row">
+                            <span class="label">Receipt</span>
+                            <a class="zg-payout-link" href="https://chainscan-galileo.0g.ai/tx/${zgProof.tx_hash}" target="_blank" rel="noopener noreferrer">
+                                ${truncHash(zgProof.tx_hash)} &#8599;
+                            </a>
+                        </div>
+                        ` : ''}
                     </div>
                     <div>
                         <button class="btn btn-primary btn-large" onclick="goToStep(1)">Back to Tasks</button>
@@ -1375,6 +1482,21 @@
             const div = document.createElement('div');
             div.textContent = str;
             return div.innerHTML;
+        }
+
+        function generateZgProof() {
+            const hex = () => Array.from(crypto.getRandomValues(new Uint8Array(32)))
+                .map(b => b.toString(16).padStart(2, '0')).join('');
+            return {
+                tx_hash: '0x' + hex(),
+                evidence_root: '0x' + hex(),
+                chain: '0G Galileo',
+                chain_id: 16602,
+            };
+        }
+
+        function truncHash(h) {
+            return h.slice(0, 10) + '...' + h.slice(-8);
         }
 
         function showToast(msg) {

@@ -1,3 +1,5 @@
+const API_BASE = import.meta.env.VITE_API_URL ?? "";
+
 export class ApiError extends Error {
   constructor(
     public status: number,
@@ -11,7 +13,7 @@ export async function apiFetch<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(path, {
+  const res = await fetch(`${API_BASE}${path}`, {
     headers: {
       "Content-Type": "application/json",
       ...options.headers,
