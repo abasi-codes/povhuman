@@ -275,6 +275,44 @@
             animation: slideUp 1s ease-out 0.4s backwards;
         }
 
+        .powered-by {
+            display: flex;
+            align-items: center;
+            gap: 0.6rem;
+            margin-top: 2rem;
+            padding: 0.5rem 1rem;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid var(--border-subtle);
+            border-radius: 100px;
+            width: fit-content;
+        }
+        .powered-by-label {
+            font-size: 0.75rem;
+            color: var(--text-muted);
+            letter-spacing: 0.03em;
+        }
+        .powered-by-logo {
+            display: flex;
+            align-items: center;
+            gap: 0.4rem;
+            text-decoration: none;
+            color: var(--text-primary);
+            transition: color 0.2s;
+        }
+        .powered-by-logo:hover {
+            color: var(--accent-cyan);
+        }
+        .zg-logo {
+            width: 24px;
+            height: auto;
+        }
+        .powered-by-name {
+            font-family: var(--font-display);
+            font-weight: 800;
+            font-size: 1rem;
+            letter-spacing: -0.02em;
+        }
+
         /* Hero Visual — Task Card Mockup */
         .hero-visual {
             position: relative;
@@ -814,10 +852,19 @@
             <div class="hero-text">
                 <div class="badge">AI-Verified Gig Work</div>
                 <h1>Do Real Tasks.<br>Get Paid <span>Instantly.</span></h1>
-                <p>AI agents need things done in the real world. Pick a task, livestream yourself completing it, and get paid when AI verifies your work. No interviews. No applications. Just do the work.</p>
+                <p>AI agents need things done in the real world. Pick a task, livestream yourself completing it, and get paid when AI verifies your work. Every verification is stored on <strong style="color:var(--accent-cyan)">0G</strong> &mdash; tamper-proof, on-chain proof you did the work.</p>
                 <div class="hero-buttons">
                     <a href="/dashboard" class="btn btn-primary btn-large">Browse Tasks &rarr;</a>
                     <a href="#how-it-works" class="btn btn-ghost btn-large">See How It Works</a>
+                </div>
+                <div class="powered-by" style="animation: slideUp 1s ease-out 0.5s backwards;">
+                    <span class="powered-by-label">Verified on-chain via</span>
+                    <a href="https://0g.ai" target="_blank" rel="noopener noreferrer" class="powered-by-logo">
+                        <svg class="zg-logo" viewBox="0 0 119 52" fill="none" xmlns="http://www.w3.org/2000/svg">
+                            <path d="M27.2729 0L31.5784 0.631518C43.2381 3.02915 51.4408 12.8266 59.4722 20.8032C59.753 20.8532 61.0264 19.2441 61.2965 18.9658C68.8257 11.2187 77.4687 2.17999 88.6381 0.39128L91.7559 0H95.9198L98.6782 0.394848C109.485 2.23826 117.33 11.384 118.745 22.0794C118.841 22.7941 118.817 23.5767 119 24.2629V27.3551C118.813 28.0401 118.844 28.8239 118.745 29.5386C116.557 45.4277 101.839 53.6898 86.6377 50.3692C77.9221 48.4664 69.7087 41.189 63.6741 34.9107C63.0398 34.2507 60.1565 30.7351 59.5662 30.6792C58.8915 30.615 57.1088 33.0007 56.5995 33.5418C50.2544 40.278 41.6042 48.4105 32.29 50.3906C17.7255 53.4876 3.7429 46.2067 0.557251 31.2845L0.027697 27.7107C0.0919574 26.4251 -0.0591737 25.0609 0.027697 23.786C0.866653 11.428 10.4224 0.852728 22.9901 0H27.2729ZM25.9401 5.98099C11.8564 6.79447 1.84246 18.6839 7.07731 32.6166C10.9234 42.8517 20.9278 47.1641 31.344 44.3276C41.5697 41.5423 48.899 33.5561 55.4738 25.7483C55.4738 25.5176 54.3468 24.5317 54.0993 24.2629C46.9283 16.4766 37.6498 5.30428 25.9389 5.98099H25.9401ZM90.8991 5.98218C86.1141 6.33183 81.9503 8.70806 78.1553 11.4399C72.6932 15.3705 68.0557 20.431 63.6872 25.5117C66.9443 29.2818 70.1799 33.1303 73.8475 36.5163C79.8618 42.0679 89.4104 46.5563 97.706 44.6606C113.49 41.0546 119.345 19.1894 105.426 9.58814C101.574 6.93124 95.5426 5.64323 90.8991 5.98337V5.98218Z" fill="currentColor"/>
+                        </svg>
+                        <span class="powered-by-name">0G</span>
+                    </a>
                 </div>
             </div>
             <div class="hero-visual">
