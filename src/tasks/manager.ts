@@ -11,8 +11,7 @@ import type { TaskConfig, TaskStatus } from "./types.js";
 import { DEFAULT_REDACTION_POLICY } from "./types.js";
 import type { TaskRow, CheckpointRow, TrioJobRow } from "../db/schema.js";
 import type { InputMode } from "../trio/types.js";
-import type { ZgStorageClient } from "../storage/zg-client.js";
-import type { ZgChainClient } from "../chain/client.js";
+import type { SolanaChainClient } from "../chain/client.js";
 import type { ChainReceipt } from "../chain/types.js";
 
 export class TaskManager {
@@ -22,8 +21,7 @@ export class TaskManager {
   private agentDelivery: AgentDelivery;
   private evidenceCapture: EvidenceCaptureService;
   private webhookBaseUrl: string;
-  private zgStorage?: ZgStorageClient;
-  private zgChain?: ZgChainClient;
+  private solanaChain?: SolanaChainClient;
 
   private stmts: ReturnType<typeof this.prepareStatements>;
 
@@ -34,8 +32,7 @@ export class TaskManager {
     agentDelivery: AgentDelivery,
     evidenceCapture: EvidenceCaptureService,
     webhookBaseUrl: string,
-    zgStorage?: ZgStorageClient,
-    zgChain?: ZgChainClient,
+    solanaChain?: SolanaChainClient,
   ) {
     this.db = db;
     this.trio = trio;
@@ -43,16 +40,15 @@ export class TaskManager {
     this.agentDelivery = agentDelivery;
     this.evidenceCapture = evidenceCapture;
     this.webhookBaseUrl = webhookBaseUrl;
-    this.zgStorage = zgStorage;
-    this.zgChain = zgChain;
+    this.solanaChain = solanaChain;
     this.stmts = this.prepareStatements();
   }
 
   private prepareStatements() {
     return {
       insertTask: this.db.prepare(`
-        INSERT INTO tasks (task_id, agent_id, description, title, payout_cents, webhook_url, status, stream_url, redaction_policy, max_duration_seconds)
-        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?)
+        INSERT INTO tasks (task_id, agent_id, description, title, payout_cents, webhook_url, status, stream_url, redaction_policy, max_duration_seconds, escrow_lamports, agent_wallet)
+        VALUES (?, ?, ?, ?, ?, ?, 'pending', ?, ?, ?, ?, ?)
       `),
       updateTaskStatus: this.db.prepare(`
         UPDATE tasks SET status = ?, updated_at = datetime('now') WHERE task_id = ?
@@ -65,6 +61,18 @@ export class TaskManager {
       `),
       updateTaskHumanId: this.db.prepare(`
         UPDATE tasks SET human_id = ?, status = 'awaiting_stream', updated_at = datetime('now') WHERE task_id = ?
+      `),
+      updateTaskHumanWallet: this.db.prepare(`
+        UPDATE tasks SET human_wallet = ?, updated_at = datetime('now') WHERE task_id = ?
+      `),
+      updateTaskEscrow: this.db.prepare(`
+        UPDATE tasks SET escrow_status = ?, escrow_pda = ?, deposit_signature = ?, updated_at = datetime('now') WHERE task_id = ?
+      `),
+      updateTaskRelease: this.db.prepare(`
+        UPDATE tasks SET escrow_status = 'released', release_signature = ?, updated_at = datetime('now') WHERE task_id = ?
+      `),
+      updateTaskRefund: this.db.prepare(`
+        UPDATE tasks SET escrow_status = 'refunded', release_signature = ?, updated_at = datetime('now') WHERE task_id = ?
       `),
       getTask: this.db.prepare(`
         SELECT * FROM tasks WHERE task_id = ?
@@ -135,13 +143,18 @@ export class TaskManager {
       updateTaskTxHash: this.db.prepare(`
         UPDATE tasks SET tx_hash = ?, updated_at = datetime('now') WHERE task_id = ?
       `),
+      // Agent queries
+      getAgent: this.db.prepare(`
+        SELECT * FROM agents WHERE agent_id = ?
+      `),
     };
   }
 
   /**
    * Create a verification task with checkpoints.
+   * If escrow_lamports > 0, creates a mock escrow on Solana.
    */
-  createTask(config: TaskConfig): string {
+  async createTask(config: TaskConfig): Promise<string> {
     const taskId = config.task_id ?? nanoid(12);
     const streamSession = this.streamRelay.createSession(taskId);
 
@@ -155,6 +168,8 @@ export class TaskManager {
       streamSession.rtsp_url,
       JSON.stringify(config.redaction_policy ?? DEFAULT_REDACTION_POLICY),
       config.max_duration_seconds ?? 3600,
+      config.escrow_lamports ?? 0,
+      config.agent_wallet ?? null,
     );
 
     // Insert checkpoints
@@ -172,14 +187,30 @@ export class TaskManager {
       );
     }
 
+    // Create escrow if lamports specified
+    if ((config.escrow_lamports ?? 0) > 0 && config.agent_wallet && this.solanaChain) {
+      try {
+        const { receipt, pda } = await this.solanaChain.createTaskEscrow(
+          taskId,
+          config.agent_wallet,
+          config.escrow_lamports!,
+        );
+        this.stmts.updateTaskEscrow.run("deposited", pda, receipt.signature, taskId);
+        this.stmts.updateTaskTxHash.run(receipt.signature, taskId);
+        logger.info({ taskId, pda, signature: receipt.signature.slice(0, 16) + "..." }, "Escrow created for task");
+      } catch (err) {
+        logger.warn({ err, taskId }, "Escrow creation failed, task created without escrow");
+      }
+    }
+
     logger.info({ taskId, checkpoints: config.checkpoints.length }, "Task created");
     return taskId;
   }
 
   /**
-   * Human claims a task. Status → awaiting_stream.
+   * Human claims a task. Status -> awaiting_stream.
    */
-  claimTask(taskId: string, humanId: string): void {
+  async claimTask(taskId: string, humanId: string, humanWallet?: string): Promise<void> {
     const task = this.stmts.getTask.get(taskId) as TaskRow | undefined;
     if (!task) throw new Error(`Task ${taskId} not found`);
     if (task.status !== "pending") {
@@ -187,12 +218,26 @@ export class TaskManager {
     }
 
     this.stmts.updateTaskHumanId.run(humanId, taskId);
-    logger.info({ taskId, humanId }, "Task claimed");
+
+    if (humanWallet) {
+      this.stmts.updateTaskHumanWallet.run(humanWallet, taskId);
+    }
+
+    // Record claim on chain if escrow exists
+    if (task.escrow_status === "deposited" && task.escrow_pda && humanWallet && this.solanaChain) {
+      try {
+        await this.solanaChain.claimTask(taskId, humanWallet, task.escrow_pda);
+      } catch (err) {
+        logger.warn({ err, taskId }, "On-chain claim recording failed");
+      }
+    }
+
+    logger.info({ taskId, humanId, humanWallet }, "Task claimed");
   }
 
   /**
    * Stream connected, start Trio monitoring jobs.
-   * Status → streaming.
+   * Status -> streaming.
    */
   async startStreaming(taskId: string): Promise<string> {
     const task = this.stmts.getTask.get(taskId) as TaskRow | undefined;
@@ -309,10 +354,10 @@ export class TaskManager {
           null,
         );
 
-        // Upload evidence to 0G Storage (async, non-blocking)
-        if (evidence.frame_b64 && this.zgStorage?.isEnabled) {
-          this.uploadToZg(result.checkpoint_id, job.task_id, eventId, evidence.frame_b64)
-            .catch((err) => logger.error({ err, checkpointId: result.checkpoint_id }, "0G upload error"));
+        // Record checkpoint verification on-chain (async, non-blocking)
+        if (this.solanaChain && task.escrow_status === "deposited") {
+          this.solanaChain.verifyCheckpoint(job.task_id, result.checkpoint_id, "")
+            .catch((err) => logger.warn({ err, checkpointId: result.checkpoint_id }, "On-chain checkpoint verify failed"));
         }
 
         // Deliver to agent
@@ -350,6 +395,7 @@ export class TaskManager {
 
   /**
    * Complete a task: all required checkpoints verified.
+   * Releases escrow if deposited.
    */
   async completeTask(taskId: string): Promise<void> {
     const task = this.stmts.getTask.get(taskId) as TaskRow | undefined;
@@ -376,29 +422,25 @@ export class TaskManager {
 
     this.stmts.updateTaskCompleted.run(verificationHash, taskId);
 
-    // Post verification hash on-chain (with timeout)
-    let txHash: string | null = null;
-    let chainReceipt: ChainReceipt | null = null;
-
-    if (this.zgChain) {
-      const verifiedCount = checkpoints.filter((cp) => cp.verified).length;
+    // Release escrow on-chain
+    let releaseReceipt: ChainReceipt | null = null;
+    if (this.solanaChain && task.escrow_status === "deposited" && task.escrow_pda) {
       try {
-        chainReceipt = await Promise.race([
-          this.zgChain.recordVerification(taskId, verificationHash, verifiedCount),
+        releaseReceipt = await Promise.race([
+          this.solanaChain.completeAndRelease(
+            taskId,
+            task.escrow_pda,
+            verificationHash,
+            checkpoints.filter((cp) => cp.verified).length,
+          ),
           new Promise<never>((_, reject) => setTimeout(() => reject(new Error("timeout")), 3000)),
         ]);
-        txHash = chainReceipt.tx_hash;
-        this.stmts.updateTaskTxHash.run(txHash, taskId);
+        this.stmts.updateTaskRelease.run(releaseReceipt.signature, taskId);
+        this.stmts.updateTaskTxHash.run(releaseReceipt.signature, taskId);
       } catch (err) {
-        logger.warn({ err, taskId }, "Chain posting failed, retrying async");
-        this.retryChainPosting(taskId, verificationHash, checkpoints.filter((cp) => cp.verified).length, task.webhook_url);
+        logger.warn({ err, taskId }, "Escrow release failed");
       }
     }
-
-    // Collect 0G evidence roots for completed checkpoints
-    const evidenceRoots = checkpoints
-      .filter((cp) => cp.verified && cp.evidence_zg_root)
-      .map((cp) => ({ checkpoint_id: cp.checkpoint_id, zg_root: cp.evidence_zg_root }));
 
     // Record and deliver completion event
     const eventId = nanoid(12);
@@ -414,15 +456,10 @@ export class TaskManager {
       checkpoints_total: checkpoints.length,
     };
 
-    if (txHash) {
-      completionMetadata.tx_hash = txHash;
-      completionMetadata.chain_id = chainReceipt!.chain_id;
-      completionMetadata.contract_address = chainReceipt!.contract_address;
-      completionMetadata.explorer_url = chainReceipt!.explorer_url;
-    }
-
-    if (evidenceRoots.length > 0) {
-      completionMetadata.evidence_roots = evidenceRoots;
+    if (releaseReceipt) {
+      completionMetadata.signature = releaseReceipt.signature;
+      completionMetadata.program_id = releaseReceipt.program_id;
+      completionMetadata.explorer_url = releaseReceipt.explorer_url;
     }
 
     this.agentDelivery.deliverEvent(task.webhook_url, {
@@ -441,7 +478,7 @@ export class TaskManager {
   }
 
   /**
-   * Cancel a task. Stop all Trio jobs.
+   * Cancel a task. Stop all Trio jobs. Refund escrow if deposited.
    */
   async cancelTask(taskId: string): Promise<void> {
     const jobs = this.stmts.getJobsByTask.all(taskId) as TrioJobRow[];
@@ -455,6 +492,16 @@ export class TaskManager {
     }
 
     const task = this.stmts.getTask.get(taskId) as TaskRow | undefined;
+
+    // Refund escrow if deposited
+    if (task && task.escrow_status === "deposited" && task.escrow_pda && this.solanaChain) {
+      try {
+        const receipt = await this.solanaChain.cancelAndRefund(taskId, task.escrow_pda);
+        this.stmts.updateTaskRefund.run(receipt.signature, taskId);
+      } catch (err) {
+        logger.warn({ err, taskId }, "Escrow refund failed");
+      }
+    }
 
     this.stmts.updateTaskStatus.run("cancelled", taskId);
     this.streamRelay.removeSession(taskId);
@@ -555,12 +602,8 @@ export class TaskManager {
     return row?.evidence_zg_root ?? null;
   }
 
-  getZgStorage(): ZgStorageClient | undefined {
-    return this.zgStorage;
-  }
-
-  getZgChain(): ZgChainClient | undefined {
-    return this.zgChain;
+  getSolanaChain(): SolanaChainClient | undefined {
+    return this.solanaChain;
   }
 
   getEvents(taskId: string, limit: number) {
@@ -570,81 +613,5 @@ export class TaskManager {
   getEventFrame(eventId: string): string | null {
     const row = this.stmts.getEventFrame.get(eventId) as { evidence_frame_b64: string | null; evidence_zg_root: string | null } | undefined;
     return row?.evidence_frame_b64 ?? null;
-  }
-
-  private async uploadToZg(
-    checkpointId: string,
-    taskId: string,
-    eventId: string,
-    frameB64: string,
-  ): Promise<void> {
-    if (!this.zgStorage) return;
-
-    const result = await this.zgStorage.uploadFrame(frameB64, { checkpoint_id: checkpointId, task_id: taskId });
-    if (result) {
-      this.stmts.updateCheckpointZgRoot.run(result.merkle_root, checkpointId);
-      this.stmts.updateEventZgRoot.run(result.merkle_root, eventId);
-      logger.info({ checkpointId, merkleRoot: result.merkle_root }, "0G root stored");
-    }
-  }
-
-  private retryChainPosting(
-    taskId: string,
-    verificationHash: string,
-    checkpointCount: number,
-    webhookUrl: string,
-  ): void {
-    const delays = [2000, 4000, 8000];
-    let attempt = 0;
-
-    const tryPost = async () => {
-      if (!this.zgChain) return;
-      attempt++;
-      try {
-        const receipt = await this.zgChain.recordVerification(taskId, verificationHash, checkpointCount);
-        this.stmts.updateTaskTxHash.run(receipt.tx_hash, taskId);
-
-        // Deliver chain_receipt event to agent
-        const eventId = nanoid(12);
-        this.stmts.insertEvent.run(
-          eventId, taskId, null, null,
-          "chain_receipt", null, "Verification recorded on-chain",
-          null, JSON.stringify({
-            tx_hash: receipt.tx_hash,
-            block_number: receipt.block_number,
-            chain_id: receipt.chain_id,
-            explorer_url: receipt.explorer_url,
-          }),
-          null,
-        );
-
-        this.agentDelivery.deliverEvent(webhookUrl, {
-          event_id: eventId,
-          task_id: taskId,
-          event_type: "chain_receipt",
-          timestamp: new Date().toISOString(),
-          metadata: {
-            tx_hash: receipt.tx_hash,
-            block_number: receipt.block_number,
-            contract_address: receipt.contract_address,
-            chain_id: receipt.chain_id,
-            explorer_url: receipt.explorer_url,
-          },
-        }).catch((err) => {
-          logger.error({ err, taskId }, "Failed to deliver chain_receipt event");
-        });
-
-        logger.info({ taskId, txHash: receipt.tx_hash, attempt }, "Chain posting succeeded on retry");
-      } catch (err) {
-        if (attempt < delays.length) {
-          logger.warn({ err, taskId, attempt }, "Chain retry failed, scheduling next");
-          setTimeout(tryPost, delays[attempt]);
-        } else {
-          logger.error({ err, taskId }, "All chain retries exhausted, tx_hash stays null");
-        }
-      }
-    };
-
-    setTimeout(tryPost, delays[0]);
   }
 }

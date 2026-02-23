@@ -1,7 +1,12 @@
 import { useTaskContext } from "../../context/TaskContext";
 
 export function TaskCreator() {
-  const { description, setDescription, webhookUrl, setWebhookUrl, taskId } = useTaskContext();
+  const {
+    description, setDescription,
+    webhookUrl, setWebhookUrl,
+    escrowSol, setEscrowSol,
+    taskId,
+  } = useTaskContext();
 
   if (taskId) return null;
 
@@ -28,6 +33,23 @@ export function TaskCreator() {
           onChange={(e) => setWebhookUrl(e.target.value)}
           placeholder="https://your-agent.com/webhook"
         />
+      </div>
+      <div className="field">
+        <div className="field-label">Escrow Amount (SOL)</div>
+        <input
+          className="field-input"
+          type="number"
+          min="0"
+          step="0.01"
+          value={escrowSol}
+          onChange={(e) => setEscrowSol(e.target.value)}
+          placeholder="0.00"
+        />
+        {Number(escrowSol) > 0 && (
+          <div className="field-hint">
+            {Math.round(Number(escrowSol) * 1_000_000_000).toLocaleString()} lamports
+          </div>
+        )}
       </div>
     </div>
   );

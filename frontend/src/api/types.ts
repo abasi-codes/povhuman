@@ -9,6 +9,8 @@ export type TaskStatus =
   | "expired"
   | "cancelled";
 
+export type EscrowStatus = "none" | "deposited" | "released" | "refunded";
+
 export interface RedactionPolicy {
   blur_faces: boolean;
   blur_text: boolean;
@@ -40,6 +42,7 @@ export interface TaskDetail {
   task_id: string;
   agent_id: string;
   description: string;
+  title: string;
   status: TaskStatus;
   stream_url: string | null;
   human_id: string | null;
@@ -52,6 +55,14 @@ export interface TaskDetail {
   checkpoints: CheckpointInfo[];
   active_jobs: number;
   jobs: JobInfo[];
+  // Escrow fields
+  escrow_lamports: number;
+  escrow_status: EscrowStatus;
+  agent_wallet: string | null;
+  human_wallet: string | null;
+  escrow_pda: string | null;
+  deposit_signature: string | null;
+  release_signature: string | null;
 }
 
 // Create task
@@ -68,12 +79,18 @@ export interface CreateTaskRequest {
   }>;
   redaction_policy?: RedactionPolicy;
   max_duration_seconds?: number;
+  escrow_lamports?: number;
+  agent_wallet?: string;
 }
 
 export interface CreateTaskResponse {
   task_id: string;
   status: string;
   stream_url: string;
+  escrow_lamports: number;
+  escrow_status: EscrowStatus;
+  escrow_pda: string | null;
+  deposit_signature: string | null;
   checkpoints: Array<{
     checkpoint_id: string;
     type: string;
@@ -104,4 +121,13 @@ export interface AgentKey {
   label: string | null;
   created_at: string;
   revoked_at: string | null;
+}
+
+// Agent
+export interface Agent {
+  agent_id: string;
+  name: string;
+  description: string;
+  avatar: string;
+  wallet_address: string | null;
 }

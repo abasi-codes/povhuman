@@ -22,8 +22,11 @@ export function createBrowseRoutes(
     const rows = db
       .prepare(
         `SELECT t.task_id, t.agent_id, t.title, t.description, t.payout_cents, t.created_at,
+                t.escrow_lamports, t.escrow_status, t.agent_wallet,
+                a.name as agent_name, a.avatar as agent_avatar, a.description as agent_description,
                 (SELECT target FROM checkpoints WHERE task_id = t.task_id ORDER BY ordering LIMIT 1) as condition
          FROM tasks t
+         LEFT JOIN agents a ON t.agent_id = a.agent_id
          WHERE t.status = 'pending'
          ORDER BY t.created_at DESC`,
       )
@@ -34,6 +37,12 @@ export function createBrowseRoutes(
       description: string;
       payout_cents: number;
       created_at: string;
+      escrow_lamports: number;
+      escrow_status: string;
+      agent_wallet: string | null;
+      agent_name: string | null;
+      agent_avatar: string | null;
+      agent_description: string | null;
       condition: string | null;
     }>;
 
@@ -41,9 +50,15 @@ export function createBrowseRoutes(
       rows.map((r) => ({
         task_id: r.task_id,
         agent_id: r.agent_id,
+        agent_name: r.agent_name ?? r.agent_id,
+        agent_avatar: r.agent_avatar ?? "",
+        agent_description: r.agent_description ?? "",
         title: r.title,
         description: r.description,
         payout_cents: r.payout_cents,
+        escrow_lamports: r.escrow_lamports,
+        escrow_sol: r.escrow_lamports / 1_000_000_000,
+        escrow_status: r.escrow_status,
         condition: r.condition ?? "",
         created_at: r.created_at,
       })),
@@ -61,12 +76,23 @@ export function createBrowseRoutes(
     const checkpoints = taskManager.getCheckpoints(taskId);
     const condition = checkpoints.length > 0 ? checkpoints[0].target : "";
 
+    // Look up agent info
+    const db = (taskManager as any).db;
+    const agent = db.prepare("SELECT * FROM agents WHERE agent_id = ?").get(task.agent_id) as {
+      name: string; avatar: string; description: string;
+    } | undefined;
+
     return c.json({
       task_id: task.task_id,
       agent_id: task.agent_id,
+      agent_name: agent?.name ?? task.agent_id,
+      agent_avatar: agent?.avatar ?? "",
       title: task.title,
       description: task.description,
       payout_cents: task.payout_cents,
+      escrow_lamports: task.escrow_lamports,
+      escrow_sol: task.escrow_lamports / 1_000_000_000,
+      escrow_status: task.escrow_status,
       condition,
       status: task.status,
       created_at: task.created_at,
@@ -129,6 +155,12 @@ export function createBrowseRoutes(
         ChefBot: {
           explanation: "Detected food preparation activity in kitchen. Ingredients were chopped and prepped on cutting board. Cooking on stovetop confirmed with visible heat and stirring.",
         },
+        DataBot: {
+          explanation: "Detected data entry activity on computer screen. Spreadsheet cells being populated with structured data. Form completion verified.",
+        },
+        ErrandBot: {
+          explanation: "Detected package pickup at delivery location. Receipt visible and item successfully collected.",
+        },
       };
       const result = mockResults[task.agent_id] ?? { explanation: "Task activity detected and verified by Trio VLM." };
       const explanation = result.explanation;
@@ -159,6 +191,8 @@ export function createBrowseRoutes(
         verified: true,
         explanation,
         payout_cents: task.payout_cents,
+        escrow_lamports: task.escrow_lamports,
+        escrow_sol: task.escrow_lamports / 1_000_000_000,
       });
     }
 

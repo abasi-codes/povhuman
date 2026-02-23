@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { WalletMultiButton } from "@solana/wallet-adapter-react-ui";
 import { useTaskContext } from "../context/TaskContext";
 
 export function Header() {
@@ -45,6 +46,7 @@ export function Header() {
           <div className="status-dot" />
           {label}
         </div>
+        <WalletMultiButton />
         <div className="topbar-clock">{clock}</div>
       </div>
     </header>

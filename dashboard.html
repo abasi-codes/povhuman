@@ -114,6 +114,26 @@
             background: var(--border-subtle);
         }
 
+        .wallet-btn {
+            font-family: var(--font-mono);
+            font-size: 0.7rem;
+            padding: 0.4rem 1rem;
+            border-radius: 6px;
+            border: 1px solid var(--border-subtle);
+            background: var(--bg-tertiary);
+            color: var(--text-secondary);
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+        .wallet-btn:hover {
+            border-color: var(--accent-cyan);
+            color: var(--accent-cyan);
+        }
+        .wallet-btn.connected {
+            border-color: var(--accent-green);
+            color: var(--accent-green);
+        }
+
         /* ─── BREADCRUMB ─── */
         .breadcrumb {
             display: flex;
@@ -975,8 +995,8 @@
             pointer-events: all;
         }
 
-        /* ─── 0G PROOF ─── */
-        .zg-proof-block {
+        /* ─── SOLANA PROOF ─── */
+        .solana-proof-block {
             display: inline-flex;
             flex-direction: column;
             gap: 0.4rem;
@@ -987,14 +1007,14 @@
             margin-bottom: 2rem;
             text-align: left;
         }
-        .zg-proof-row {
+        .solana-proof-row {
             display: flex;
             justify-content: space-between;
             align-items: center;
             gap: 1.5rem;
             font-size: 0.8rem;
         }
-        .zg-proof-label {
+        .solana-proof-label {
             font-family: var(--font-mono);
             font-size: 0.6rem;
             color: var(--text-muted);
@@ -1002,22 +1022,22 @@
             letter-spacing: 0.1em;
             white-space: nowrap;
         }
-        .zg-proof-value {
+        .solana-proof-value {
             font-family: var(--font-mono);
             font-size: 0.75rem;
             color: var(--text-secondary);
         }
-        .zg-proof-link {
+        .solana-proof-link {
             font-family: var(--font-mono);
             font-size: 0.75rem;
             color: var(--accent-cyan);
             text-decoration: none;
             transition: opacity 0.2s;
         }
-        .zg-proof-link:hover {
+        .solana-proof-link:hover {
             opacity: 0.7;
         }
-        .zg-tag {
+        .solana-tag {
             display: inline-block;
             padding: 0.1rem 0.4rem;
             background: rgba(0, 245, 212, 0.12);
@@ -1030,13 +1050,13 @@
             letter-spacing: 0.05em;
             margin-right: 0.3rem;
         }
-        .zg-payout-link {
+        .solana-payout-link {
             font-family: var(--font-mono);
             font-size: 0.75rem;
             color: var(--accent-cyan);
             text-decoration: none;
         }
-        .zg-payout-link:hover {
+        .solana-payout-link:hover {
             opacity: 0.7;
         }
     </style>
@@ -1059,6 +1079,7 @@
             <div class="topbar-divider"></div>
             <div class="breadcrumb" id="breadcrumb"></div>
         </div>
+        <button class="wallet-btn" id="wallet-btn" onclick="toggleWalletConnect()">Connect Wallet</button>
     </header>
 
     <!-- MAIN -->
@@ -1110,7 +1131,7 @@
         let selectedTask = null;
         let trioResult = null;
         let streamUrl = null;
-        let zgProof = null;
+        let solanaProof = null;
 
         const stepNames = ['Browse', 'Details', 'Stream', 'Verify', 'Result', 'Payout'];
 
@@ -1177,15 +1198,21 @@
         }
 
         // ─── STEP 1: TASK GRID ───
+        function formatSol(lamports) {
+            return (lamports / 1_000_000_000).toFixed(2) + ' SOL';
+        }
+
         function renderTaskGrid() {
             const el = document.getElementById('task-grid');
             el.innerHTML = tasks.map(t => `
                 <div class="task-card" onclick="selectTask('${t.task_id}')">
-                    <div class="task-card-agent">${t.agent_id}</div>
+                    <div class="task-card-agent">${t.agent_avatar || ''} ${t.agent_name || t.agent_id}</div>
                     <div class="task-card-title">${t.title}</div>
                     <div class="task-card-desc">${t.description}</div>
                     <div class="task-card-footer">
-                        <div class="task-card-payout">${formatPayout(t.payout_cents)}</div>
+                        <div class="task-card-payout">
+                            ${t.escrow_lamports > 0 ? `<span style="color:var(--accent-cyan)">${formatSol(t.escrow_lamports)}</span>` : formatPayout(t.payout_cents)}
+                        </div>
                         <div class="task-card-arrow">&rarr;</div>
                     </div>
                 </div>
@@ -1202,25 +1229,31 @@
         function renderDetail() {
             if (!selectedTask) return;
             const t = selectedTask;
+            const escrowHtml = t.escrow_lamports > 0 ? `
+                    <div class="detail-info-item">
+                        <span class="detail-info-label">Escrow</span>
+                        <span class="detail-info-value" style="color:var(--accent-cyan)">${formatSol(t.escrow_lamports)}</span>
+                    </div>` : '';
             document.getElementById('detail-card').innerHTML = `
                 <div class="detail-card-top">
-                    <div class="detail-agent-badge">${t.agent_id}</div>
+                    <div class="detail-agent-badge">${t.agent_avatar || ''} ${t.agent_name || t.agent_id}</div>
                     <div class="detail-title">${t.title}</div>
                     <div class="detail-desc">${t.description}</div>
                 </div>
                 <div class="detail-info-row">
                     <div class="detail-info-item">
                         <span class="detail-info-label">Payout</span>
-                        <span class="detail-info-value payout">${formatPayout(t.payout_cents)}</span>
+                        <span class="detail-info-value payout">${t.escrow_lamports > 0 ? formatSol(t.escrow_lamports) : formatPayout(t.payout_cents)}</span>
                     </div>
                     <div class="detail-info-item">
                         <span class="detail-info-label">Agent</span>
-                        <span class="detail-info-value">${t.agent_id}</span>
+                        <span class="detail-info-value">${t.agent_name || t.agent_id}</span>
                     </div>
                     <div class="detail-info-item">
                         <span class="detail-info-label">Verification</span>
                         <span class="detail-info-value">Trio VLM</span>
                     </div>
+                    ${escrowHtml}
                 </div>
                 <div class="detail-condition">
                     <div class="detail-condition-icon">&#9673;</div>
@@ -1327,7 +1360,7 @@
                         verified: data.verified,
                         explanation: data.explanation || 'No explanation provided.',
                     };
-                    if (data.verified) zgProof = generateZgProof();
+                    if (data.verified) solanaProof = generateSolanaProof();
                 }
             } catch (err) {
                 trioResult = {
@@ -1357,22 +1390,27 @@
                             <span class="result-meta-value">${t.title}</span>
                         </div>
                     </div>
-                    ${isVerified && zgProof ? `
-                    <div class="zg-proof-block">
-                        <div class="zg-proof-row">
-                            <span class="zg-proof-label">Evidence Storage</span>
-                            <span class="zg-proof-value"><span class="zg-tag">0G</span> ${truncHash(zgProof.evidence_root)}</span>
+                    ${isVerified && solanaProof ? `
+                    <div class="solana-proof-block">
+                        <div class="solana-proof-row">
+                            <span class="solana-proof-label">Evidence Storage</span>
+                            <span class="solana-proof-value"><span class="solana-tag">SOL</span> ${truncHash(solanaProof.evidence_root)}</span>
                         </div>
-                        <div class="zg-proof-row">
-                            <span class="zg-proof-label">Chain Receipt</span>
-                            <a class="zg-proof-link" href="https://chainscan-galileo.0g.ai/tx/${zgProof.tx_hash}" target="_blank" rel="noopener noreferrer">
-                                ${truncHash(zgProof.tx_hash)} &#8599;
+                        <div class="solana-proof-row">
+                            <span class="solana-proof-label">Chain Receipt</span>
+                            <a class="solana-proof-link" href="https://explorer.solana.com/tx/${solanaProof.tx_hash}?cluster=devnet" target="_blank" rel="noopener noreferrer">
+                                ${truncHash(solanaProof.tx_hash)} &#8599;
                             </a>
                         </div>
-                        <div class="zg-proof-row">
-                            <span class="zg-proof-label">Network</span>
-                            <span class="zg-proof-value">${zgProof.chain} <span style="color:var(--text-muted)">&middot; ${zgProof.chain_id}</span></span>
+                        <div class="solana-proof-row">
+                            <span class="solana-proof-label">Network</span>
+                            <span class="solana-proof-value">${solanaProof.chain} <span style="color:var(--text-muted)">&middot; ${solanaProof.chain_id}</span></span>
                         </div>
+                        ${solanaProof.escrow_pda ? `
+                        <div class="solana-proof-row">
+                            <span class="solana-proof-label">Escrow PDA</span>
+                            <span class="solana-proof-value">${truncHash(solanaProof.escrow_pda)}</span>
+                        </div>` : ''}
                     </div>
                     ` : ''}
                     <div class="result-actions">
@@ -1391,6 +1429,8 @@
         function renderPayout() {
             if (!selectedTask) return;
             const t = selectedTask;
+            const hasEscrow = t.escrow_lamports > 0;
+            const payoutDisplay = hasEscrow ? formatSol(t.escrow_lamports) : `$${(t.payout_cents / 100).toFixed(2)}`;
             const payoutDollars = t.payout_cents / 100;
 
             document.getElementById('payout-container').innerHTML = `
@@ -1398,31 +1438,31 @@
                     <div class="payout-glow"></div>
                     <div class="payout-check">&#10003;</div>
                     <div class="payout-label">Task Completed</div>
-                    <div class="payout-amount" id="payout-counter">$0.00</div>
+                    <div class="payout-amount" id="payout-counter">${hasEscrow ? payoutDisplay : '$0.00'}</div>
                     <div class="payout-task-name">${t.title} &mdash; verified by Trio VLM</div>
                     <div class="payout-details">
                         <div class="payout-detail-row">
                             <span class="label">Agent</span>
-                            <span class="value">${t.agent_id}</span>
+                            <span class="value">${t.agent_name || t.agent_id}</span>
                         </div>
                         <div class="payout-detail-row">
                             <span class="label">Payout</span>
-                            <span class="value" style="color: var(--accent-green)">${formatPayout(t.payout_cents)}</span>
+                            <span class="value" style="color: var(--accent-green)">${payoutDisplay}</span>
                         </div>
                         <div class="payout-detail-row">
                             <span class="label">Status</span>
-                            <span class="value" style="color: var(--accent-green)">Paid</span>
+                            <span class="value" style="color: var(--accent-green)">${hasEscrow ? 'Escrow Released' : 'Paid'}</span>
                         </div>
-                        ${zgProof ? `
+                        ${solanaProof ? `
                         <div style="border-top:1px solid var(--border-subtle); margin-top:0.5rem; padding-top:0.5rem;"></div>
                         <div class="payout-detail-row">
                             <span class="label">Evidence</span>
-                            <span class="value"><span class="zg-tag" style="font-size:0.65rem">0G</span> Stored</span>
+                            <span class="value"><span class="solana-tag" style="font-size:0.65rem">SOL</span> Stored</span>
                         </div>
                         <div class="payout-detail-row">
                             <span class="label">Receipt</span>
-                            <a class="zg-payout-link" href="https://chainscan-galileo.0g.ai/tx/${zgProof.tx_hash}" target="_blank" rel="noopener noreferrer">
-                                ${truncHash(zgProof.tx_hash)} &#8599;
+                            <a class="solana-payout-link" href="https://explorer.solana.com/tx/${solanaProof.tx_hash}?cluster=devnet" target="_blank" rel="noopener noreferrer">
+                                ${truncHash(solanaProof.tx_hash)} &#8599;
                             </a>
                         </div>
                         ` : ''}
@@ -1433,7 +1473,7 @@
                 </div>
             `;
 
-            animateCounter(payoutDollars);
+            if (!hasEscrow) animateCounter(payoutDollars);
             launchConfetti();
         }
 
@@ -1484,14 +1524,18 @@
             return div.innerHTML;
         }
 
-        function generateZgProof() {
-            const hex = () => Array.from(crypto.getRandomValues(new Uint8Array(32)))
-                .map(b => b.toString(16).padStart(2, '0')).join('');
+        function generateSolanaProof() {
+            // Generate realistic base58-encoded Solana signature (88 chars)
+            const base58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+            const makeSig = (len) => Array.from(crypto.getRandomValues(new Uint8Array(len)))
+                .map(b => base58Chars[b % base58Chars.length]).join('');
+            const makeAddr = () => makeSig(44);
             return {
-                tx_hash: '0x' + hex(),
-                evidence_root: '0x' + hex(),
-                chain: '0G Galileo',
-                chain_id: 16602,
+                tx_hash: makeSig(88),
+                evidence_root: makeSig(44),
+                chain: 'Solana',
+                chain_id: 'devnet',
+                escrow_pda: makeAddr(),
             };
         }
 
@@ -1504,6 +1548,30 @@
             el.textContent = msg;
             el.classList.add('show');
             setTimeout(() => el.classList.remove('show'), 2500);
+        }
+
+        // ─── MOCK WALLET CONNECT ───
+        let walletConnected = false;
+        let walletAddress = null;
+
+        function toggleWalletConnect() {
+            const btn = document.getElementById('wallet-btn');
+            if (walletConnected) {
+                walletConnected = false;
+                walletAddress = null;
+                btn.textContent = 'Connect Wallet';
+                btn.classList.remove('connected');
+                showToast('Wallet disconnected');
+            } else {
+                // Generate a mock Solana address
+                const base58Chars = '123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz';
+                walletAddress = Array.from(crypto.getRandomValues(new Uint8Array(44)))
+                    .map(b => base58Chars[b % base58Chars.length]).join('').slice(0, 44);
+                walletConnected = true;
+                btn.textContent = walletAddress.slice(0, 4) + '..' + walletAddress.slice(-4);
+                btn.classList.add('connected');
+                showToast('Wallet connected (mock devnet)');
+            }
         }
 
         // ─── INIT ───

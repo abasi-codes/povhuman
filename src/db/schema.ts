@@ -26,7 +26,23 @@ export function initDatabase(dbPath: string): Database.Database {
       started_at TEXT,
       completed_at TEXT,
       expires_at TEXT,
-      tx_hash TEXT
+      tx_hash TEXT,
+      escrow_lamports INTEGER DEFAULT 0,
+      escrow_status TEXT DEFAULT 'none',
+      agent_wallet TEXT,
+      human_wallet TEXT,
+      escrow_pda TEXT,
+      deposit_signature TEXT,
+      release_signature TEXT
+    );
+
+    CREATE TABLE IF NOT EXISTS agents (
+      agent_id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      description TEXT NOT NULL,
+      avatar TEXT NOT NULL DEFAULT '',
+      wallet_address TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
     );
 
     CREATE TABLE IF NOT EXISTS checkpoints (
@@ -102,6 +118,13 @@ export function initDatabase(dbPath: string): Database.Database {
     "ALTER TABLE tasks ADD COLUMN tx_hash TEXT",
     "ALTER TABLE checkpoints ADD COLUMN evidence_zg_root TEXT",
     "ALTER TABLE verification_events ADD COLUMN evidence_zg_root TEXT",
+    "ALTER TABLE tasks ADD COLUMN escrow_lamports INTEGER DEFAULT 0",
+    "ALTER TABLE tasks ADD COLUMN escrow_status TEXT DEFAULT 'none'",
+    "ALTER TABLE tasks ADD COLUMN agent_wallet TEXT",
+    "ALTER TABLE tasks ADD COLUMN human_wallet TEXT",
+    "ALTER TABLE tasks ADD COLUMN escrow_pda TEXT",
+    "ALTER TABLE tasks ADD COLUMN deposit_signature TEXT",
+    "ALTER TABLE tasks ADD COLUMN release_signature TEXT",
   ];
   for (const sql of migrations) {
     try { db.exec(sql); } catch { /* column already exists */ }
@@ -132,6 +155,22 @@ export interface TaskRow {
   completed_at: string | null;
   expires_at: string | null;
   tx_hash: string | null;
+  escrow_lamports: number;
+  escrow_status: string;
+  agent_wallet: string | null;
+  human_wallet: string | null;
+  escrow_pda: string | null;
+  deposit_signature: string | null;
+  release_signature: string | null;
+}
+
+export interface AgentRow {
+  agent_id: string;
+  name: string;
+  description: string;
+  avatar: string;
+  wallet_address: string | null;
+  created_at: string;
 }
 
 export interface CheckpointRow {

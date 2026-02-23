@@ -1059,7 +1059,7 @@ select.field-input {
   font-style: italic;
 }
 
-/* === CHAIN / 0G === */
+/* === CHAIN / SOLANA === */
 .chain-display {
   background: var(--surface2);
   border: 1px solid var(--border);
@@ -1088,7 +1088,7 @@ select.field-input {
   color: var(--cyan);
   display: inline-block;
 }
-.zg-badge {
+.solana-badge {
   font-size: 9px;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -1102,6 +1102,66 @@ select.field-input {
   font-size: 10px;
   color: var(--text4);
   font-style: italic;
+}
+
+/* === ESCROW DISPLAY === */
+.escrow-display {
+  background: var(--surface2);
+  border: 1px solid var(--border);
+  border-radius: var(--r2);
+  padding: 10px 12px;
+  margin-top: 8px;
+}
+.escrow-amount {
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--amber);
+  margin: 4px 0;
+}
+.escrow-status {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 2px;
+  display: inline-block;
+  margin-bottom: 6px;
+}
+.escrow-deposited {
+  background: var(--amber-dim);
+  color: var(--amber);
+}
+.escrow-released {
+  background: var(--green-dim);
+  color: var(--green);
+}
+.escrow-refunded {
+  background: var(--red-dim);
+  color: var(--red);
+}
+.escrow-none {
+  background: var(--surface3);
+  color: var(--text3);
+}
+.escrow-pda {
+  font-size: 10px;
+  color: var(--text3);
+  font-variant-numeric: tabular-nums;
+  margin-top: 4px;
+}
+.field-hint {
+  font-size: 10px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+
+/* === WALLET BUTTON OVERRIDES === */
+.wallet-adapter-button {
+  font-family: var(--fm) !important;
+  font-size: 11px !important;
+  height: 28px !important;
+  padding: 0 12px !important;
+  border-radius: var(--r2) !important;
 }
 
 /* === SPINNER === */

@@ -29,16 +29,6 @@ export function createEventRoutes(taskManager: TaskManager): Hono {
       return c.json({ event_id: eventId, source: "local", frame_b64: frame });
     }
 
-    // Fall back to 0G Storage if local frame expired
-    const zgRoot = taskManager.getEventZgRoot(eventId);
-    const zgStorage = taskManager.getZgStorage();
-    if (zgRoot && zgStorage?.isEnabled) {
-      const downloaded = await zgStorage.downloadFrame(zgRoot);
-      if (downloaded) {
-        return c.json({ event_id: eventId, source: "0g", frame_b64: downloaded, zg_root: zgRoot });
-      }
-    }
-
     return c.json({ error: "Frame not found", code: "NOT_FOUND" }, 404);
   });
 

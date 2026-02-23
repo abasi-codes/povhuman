@@ -1,5 +1,27 @@
 import { useTaskContext } from "../../context/TaskContext";
 
+function lamportsToSol(lamports: number): string {
+  return (lamports / 1_000_000_000).toFixed(2);
+}
+
+function escrowLabel(status: string): string {
+  switch (status) {
+    case "deposited": return "Deposited";
+    case "released": return "Released";
+    case "refunded": return "Refunded";
+    default: return "No Escrow";
+  }
+}
+
+function escrowClass(status: string): string {
+  switch (status) {
+    case "deposited": return "escrow-deposited";
+    case "released": return "escrow-released";
+    case "refunded": return "escrow-refunded";
+    default: return "escrow-none";
+  }
+}
+
 export function ResourceGauges() {
   const { task } = useTaskContext();
 
@@ -8,6 +30,8 @@ export function ResourceGauges() {
   const r = 17;
   const circumference = 2 * Math.PI * r;
   const offset = circumference - (activeJobs / maxJobs) * circumference;
+
+  const hasEscrow = task && task.escrow_lamports > 0;
 
   return (
     <div className="panel">
@@ -36,6 +60,43 @@ export function ResourceGauges() {
         </div>
       </div>
 
+      {hasEscrow && (
+        <div className="escrow-display">
+          <div className="hash-label">Escrow</div>
+          <div className="escrow-amount">
+            {lamportsToSol(task.escrow_lamports)} SOL
+          </div>
+          <div className={`escrow-status ${escrowClass(task.escrow_status)}`}>
+            {escrowLabel(task.escrow_status)}
+          </div>
+          {task.escrow_pda && (
+            <div className="escrow-pda">
+              PDA: {task.escrow_pda.slice(0, 8)}...{task.escrow_pda.slice(-6)}
+            </div>
+          )}
+          {task.deposit_signature && (
+            <a
+              className="chain-link"
+              href={`https://explorer.solana.com/tx/${task.deposit_signature}?cluster=devnet`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Deposit tx: {task.deposit_signature.slice(0, 8)}...{task.deposit_signature.slice(-6)}
+            </a>
+          )}
+          {task.release_signature && (
+            <a
+              className="chain-link"
+              href={`https://explorer.solana.com/tx/${task.release_signature}?cluster=devnet`}
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Release tx: {task.release_signature.slice(0, 8)}...{task.release_signature.slice(-6)}
+            </a>
+          )}
+        </div>
+      )}
+
       <div className="hash-display">
         <div className="hash-label">Verification Hash</div>
         {task?.verification_hash ? (
@@ -54,17 +115,17 @@ export function ResourceGauges() {
             <>
               <a
                 className="chain-link"
-                href={`https://chainscan-galileo.0g.ai/tx/${task.tx_hash}`}
+                href={`https://explorer.solana.com/tx/${task.tx_hash}?cluster=devnet`}
                 target="_blank"
                 rel="noopener noreferrer"
               >
                 {task.tx_hash.slice(0, 10)}...{task.tx_hash.slice(-8)}
               </a>
-              <span className="chain-badge">0G Galileo &middot; 16602</span>
+              <span className="chain-badge">Solana</span>
             </>
           ) : (
             <div className="chain-pending">
-              Pending &mdash; posting to 0G Chain...
+              Pending &mdash; posting to Solana...
             </div>
           )}
         </div>

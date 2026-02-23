@@ -37,6 +37,8 @@ export interface TaskConfig {
   checkpoints: CheckpointConfig[];
   redaction_policy?: RedactionPolicy;
   max_duration_seconds?: number;
+  escrow_lamports?: number;
+  agent_wallet?: string;
 }
 
 export interface TaskInfo {

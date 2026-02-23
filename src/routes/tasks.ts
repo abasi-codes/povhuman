@@ -24,10 +24,13 @@ const CreateTaskSchema = z.object({
     blur_text: z.boolean(),
   }).optional(),
   max_duration_seconds: z.number().int().min(60).max(86400).optional(),
+  escrow_lamports: z.number().int().min(0).optional(),
+  agent_wallet: z.string().optional(),
 });
 
 const ClaimTaskSchema = z.object({
   human_id: z.string().min(1, "human_id is required"),
+  human_wallet: z.string().optional(),
 });
 
 function zodError(result: z.ZodError) {
@@ -58,7 +61,7 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
       }
     }
 
-    const taskId = taskManager.createTask({
+    const taskId = await taskManager.createTask({
       agent_id: "api", // TODO: extract from auth
       description: body.description,
       title: body.title,
@@ -67,6 +70,8 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
       checkpoints: body.checkpoints,
       redaction_policy: body.redaction_policy,
       max_duration_seconds: body.max_duration_seconds,
+      escrow_lamports: body.escrow_lamports,
+      agent_wallet: body.agent_wallet,
     });
 
     const task = taskManager.getTask(taskId);
@@ -76,6 +81,10 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
       task_id: taskId,
       status: task?.status,
       stream_url: task?.stream_url,
+      escrow_lamports: task?.escrow_lamports ?? 0,
+      escrow_status: task?.escrow_status ?? "none",
+      escrow_pda: task?.escrow_pda ?? null,
+      deposit_signature: task?.deposit_signature ?? null,
       checkpoints: checkpoints.map((cp) => ({
         checkpoint_id: cp.checkpoint_id,
         type: cp.type,
@@ -110,6 +119,14 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
       created_at: task.created_at,
       started_at: task.started_at,
       completed_at: task.completed_at,
+      // Escrow fields
+      escrow_lamports: task.escrow_lamports,
+      escrow_status: task.escrow_status,
+      agent_wallet: task.agent_wallet,
+      human_wallet: task.human_wallet,
+      escrow_pda: task.escrow_pda,
+      deposit_signature: task.deposit_signature,
+      release_signature: task.release_signature,
       checkpoints: checkpoints.map((cp) => ({
         checkpoint_id: cp.checkpoint_id,
         type: cp.type,
@@ -142,7 +159,7 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
     if (!parsed.success) return c.json(zodError(parsed.error), 400);
 
     try {
-      taskManager.claimTask(taskId, parsed.data.human_id);
+      await taskManager.claimTask(taskId, parsed.data.human_id, parsed.data.human_wallet);
       const task = taskManager.getTask(taskId);
       return c.json({
         task_id: taskId,
@@ -201,32 +218,24 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
       task_id: task.task_id,
       verification_hash: task.verification_hash,
       tx_hash: task.tx_hash,
+      escrow_status: task.escrow_status,
+      escrow_lamports: task.escrow_lamports,
     };
 
     if (task.tx_hash) {
       result.chain = {
-        chain_id: config.zeroG.chainId,
-        contract_address: config.zeroG.contractAddress,
-        explorer_url: `${config.zeroG.explorerUrl}/tx/${task.tx_hash}`,
+        program_id: config.solana.programId,
+        explorer_url: `${config.solana.explorerUrl}/tx/${task.tx_hash}?cluster=${config.solana.cluster}`,
       };
     }
 
-    // If chain client available, do live on-chain lookup
-    const zgChain = taskManager.getZgChain();
-    if (zgChain && task.verification_hash) {
-      try {
-        const onChain = await zgChain.verifyTask(taskId);
-        if (onChain) {
-          result.on_chain = {
-            verification_hash: onChain.verificationHash,
-            checkpoint_count: onChain.checkpointCount,
-            timestamp: onChain.timestamp,
-            matches: onChain.verificationHash === task.verification_hash,
-          };
-        }
-      } catch {
-        // On-chain lookup is best-effort
-      }
+    if (task.escrow_pda) {
+      result.escrow = {
+        pda: task.escrow_pda,
+        deposit_signature: task.deposit_signature,
+        release_signature: task.release_signature,
+        status: task.escrow_status,
+      };
     }
 
     return c.json(result);

@@ -27,8 +27,7 @@ import { requestLogger } from "./middleware/request-logger.js";
 import { createMetricsRoutes, incrementCounter } from "./routes/metrics.js";
 import { DEFAULT_REDACTION_POLICY } from "./tasks/types.js";
 import type { AnyWebhookPayload, MonitorTriggeredPayload, JobStatusPayload } from "./trio/types.js";
-import { ZgStorageClient } from "./storage/zg-client.js";
-import { ZgChainClient } from "./chain/client.js";
+import { SolanaChainClient } from "./chain/client.js";
 
 // --- Initialize dependencies ---
 
@@ -43,22 +42,14 @@ const evidenceCapture = new EvidenceCaptureService(
 
 const webhookBaseUrl = `http://${config.server.host === "0.0.0.0" ? "localhost" : config.server.host}:${config.server.port}`;
 
-const zgStorage = new ZgStorageClient(
-  config.zeroG.storageEnabled
-    ? { rpcUrl: config.zeroG.rpcUrl, indexerUrl: config.zeroG.indexerUrl, privateKey: config.zeroG.privateKey }
-    : null,
-);
-
-let zgChain: ZgChainClient | undefined;
-if (config.zeroG.chainEnabled && config.zeroG.privateKey && config.zeroG.contractAddress) {
-  zgChain = new ZgChainClient({
-    rpcUrl: config.zeroG.rpcUrl,
-    privateKey: config.zeroG.privateKey,
-    contractAddress: config.zeroG.contractAddress,
-    chainId: config.zeroG.chainId,
-    explorerUrl: config.zeroG.explorerUrl,
-  });
-}
+// Solana chain client (mock escrow in Phase 2A, real Anchor in 2B)
+const solanaChain = new SolanaChainClient({
+  rpcUrl: config.solana.rpcUrl,
+  programId: config.solana.programId,
+  explorerUrl: config.solana.explorerUrl,
+  cluster: config.solana.cluster,
+  authorityKeypair: config.solana.authorityKeypair,
+});
 
 const taskManager = new TaskManager(
   db,
@@ -67,12 +58,11 @@ const taskManager = new TaskManager(
   agentDelivery,
   evidenceCapture,
   webhookBaseUrl,
-  zgStorage,
-  zgChain,
+  solanaChain,
 );
 
 // --- Seed demo tasks ---
-seedDemoTasks(db, taskManager);
+await seedDemoTasks(db, taskManager);
 
 // --- Load HTML pages ---
 const rootDir = join(import.meta.dirname ?? ".", "..");

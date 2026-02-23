@@ -1,4 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef } from "react";
+import { useWallet } from "@solana/wallet-adapter-react";
 import type { TaskDetail, VerificationEvent } from "../api/types";
 import * as tasksApi from "../api/tasks";
 import { useTask } from "../hooks/useTask";
@@ -16,9 +17,15 @@ interface TaskContextValue {
   setDescription: (d: string) => void;
   webhookUrl: string;
   setWebhookUrl: (u: string) => void;
+  escrowSol: string;
+  setEscrowSol: (s: string) => void;
   checkpointInputs: Array<{ type: string; target: string }>;
   addCheckpoint: (type: string, target: string) => void;
   removeCheckpoint: (index: number) => void;
+
+  // Wallet
+  walletAddress: string | null;
+  walletConnected: boolean;
 
   // Actions
   createTask: () => Promise<void>;
@@ -36,15 +43,19 @@ const TaskContext = createContext<TaskContextValue | null>(null);
 
 export function TaskProvider({ children }: { children: React.ReactNode }) {
   const { addToast } = useToast();
+  const { publicKey, connected } = useWallet();
 
   const [taskId, setTaskId] = useState<string | null>(null);
   const [description, setDescription] = useState("");
   const [webhookUrl, setWebhookUrl] = useState("");
+  const [escrowSol, setEscrowSol] = useState("");
   const [checkpointInputs, setCheckpointInputs] = useState<Array<{ type: string; target: string }>>([]);
   const [createError, setCreateError] = useState<string | null>(null);
 
   const { data: task, loading: taskLoading } = useTask(taskId);
   const { events, loading: eventsLoading } = useEvents(taskId);
+
+  const walletAddress = publicKey?.toBase58() ?? null;
 
   // Toast on status changes
   const prevStatusRef = useRef<string | null>(null);
@@ -71,11 +82,15 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
 
   const doCreateTask = useCallback(async () => {
     setCreateError(null);
+    const escrowLamports = escrowSol ? Math.round(Number(escrowSol) * 1_000_000_000) : 0;
+
     try {
       const result = await tasksApi.createTask({
         description,
         webhook_url: webhookUrl,
         checkpoints: checkpointInputs,
+        escrow_lamports: escrowLamports > 0 ? escrowLamports : undefined,
+        agent_wallet: escrowLamports > 0 && walletAddress ? walletAddress : undefined,
       });
       setTaskId(result.task_id);
       addToast("success", "Task created");
@@ -84,7 +99,7 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
       setCreateError(msg);
       addToast("error", msg);
     }
-  }, [description, webhookUrl, checkpointInputs, addToast]);
+  }, [description, webhookUrl, checkpointInputs, escrowSol, walletAddress, addToast]);
 
   const doClaimTask = useCallback(async (humanId: string) => {
     if (!taskId) return;
@@ -124,9 +139,13 @@ export function TaskProvider({ children }: { children: React.ReactNode }) {
         setDescription,
         webhookUrl,
         setWebhookUrl,
+        escrowSol,
+        setEscrowSol,
         checkpointInputs,
         addCheckpoint,
         removeCheckpoint,
+        walletAddress,
+        walletConnected: connected,
         createTask: doCreateTask,
         claimTask: doClaimTask,
         startTask: doStartTask,
