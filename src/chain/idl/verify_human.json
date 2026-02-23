@@ -1,0 +1,148 @@
+{
+  "address": "VHescrow11111111111111111111111111111111111",
+  "metadata": {
+    "name": "verify_human",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "VerifyHuman escrow program — agents deposit SOL, humans earn by completing verified tasks"
+  },
+  "instructions": [
+    {
+      "name": "initialize",
+      "discriminator": [175, 175, 109, 31, 13, 152, 155, 237],
+      "accounts": [
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } },
+        { "name": "authority", "writable": true, "signer": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "fee_bps", "type": "u16" }
+      ]
+    },
+    {
+      "name": "create_task",
+      "discriminator": [194, 80, 6, 180, 232, 222, 218, 38],
+      "accounts": [
+        { "name": "config", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } },
+        { "name": "escrow", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [101, 115, 99, 114, 111, 119] }, { "kind": "arg", "path": "task_id" }] } },
+        { "name": "agent", "writable": true, "signer": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "task_id", "type": "string" },
+        { "name": "checkpoint_count", "type": "u8" },
+        { "name": "escrow_lamports", "type": "u64" }
+      ]
+    },
+    {
+      "name": "claim_task",
+      "discriminator": [116, 173, 4, 119, 41, 218, 108, 51],
+      "accounts": [
+        { "name": "escrow", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [101, 115, 99, 114, 111, 119] }, { "kind": "arg", "path": "task_id" }] } },
+        { "name": "human", "signer": true }
+      ],
+      "args": [
+        { "name": "task_id", "type": "string" }
+      ]
+    },
+    {
+      "name": "verify_checkpoint",
+      "discriminator": [46, 41, 71, 184, 110, 245, 152, 125],
+      "accounts": [
+        { "name": "config", "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } },
+        { "name": "escrow", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [101, 115, 99, 114, 111, 119] }, { "kind": "arg", "path": "task_id" }] } },
+        { "name": "authority", "signer": true }
+      ],
+      "args": [
+        { "name": "task_id", "type": "string" },
+        { "name": "checkpoint_index", "type": "u8" }
+      ]
+    },
+    {
+      "name": "complete_and_release",
+      "discriminator": [57, 185, 193, 46, 111, 158, 213, 236],
+      "accounts": [
+        { "name": "config", "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } },
+        { "name": "escrow", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [101, 115, 99, 114, 111, 119] }, { "kind": "arg", "path": "task_id" }] } },
+        { "name": "human", "writable": true },
+        { "name": "authority", "signer": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "task_id", "type": "string" },
+        { "name": "verification_hash", "type": { "array": ["u8", 32] } }
+      ]
+    },
+    {
+      "name": "cancel_and_refund",
+      "discriminator": [201, 108, 254, 210, 220, 192, 109, 74],
+      "accounts": [
+        { "name": "config", "pda": { "seeds": [{ "kind": "const", "value": [99, 111, 110, 102, 105, 103] }] } },
+        { "name": "escrow", "writable": true, "pda": { "seeds": [{ "kind": "const", "value": [101, 115, 99, 114, 111, 119] }, { "kind": "arg", "path": "task_id" }] } },
+        { "name": "agent", "writable": true },
+        { "name": "signer", "signer": true },
+        { "name": "system_program", "address": "11111111111111111111111111111111" }
+      ],
+      "args": [
+        { "name": "task_id", "type": "string" }
+      ]
+    }
+  ],
+  "accounts": [
+    {
+      "name": "Config",
+      "discriminator": [155, 12, 170, 224, 30, 250, 204, 130]
+    },
+    {
+      "name": "TaskEscrow",
+      "discriminator": [28, 190, 54, 117, 136, 233, 42, 245]
+    }
+  ],
+  "errors": [
+    { "code": 6000, "name": "InvalidTaskStatus", "msg": "Task is not in the expected status for this operation" },
+    { "code": 6001, "name": "ZeroEscrow", "msg": "Escrow amount must be greater than zero" },
+    { "code": 6002, "name": "AlreadyClaimed", "msg": "Task has already been claimed" },
+    { "code": 6003, "name": "NotClaimed", "msg": "Task has not been claimed yet" },
+    { "code": 6004, "name": "CheckpointOutOfBounds", "msg": "Checkpoint index out of bounds" },
+    { "code": 6005, "name": "CheckpointAlreadyVerified", "msg": "Checkpoint already verified" },
+    { "code": 6006, "name": "IncompleteCheckpoints", "msg": "Not all required checkpoints have been verified" },
+    { "code": 6007, "name": "UnauthorizedAuthority", "msg": "Only the authority can perform this action" },
+    { "code": 6008, "name": "UnauthorizedAgent", "msg": "Only the agent can cancel this task" },
+    { "code": 6009, "name": "TaskIdTooLong", "msg": "Task ID exceeds maximum length" },
+    { "code": 6010, "name": "Overflow", "msg": "Arithmetic overflow" }
+  ],
+  "types": [
+    {
+      "name": "Config",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "authority", "type": "pubkey" },
+          { "name": "fee_bps", "type": "u16" },
+          { "name": "task_count", "type": "u64" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    },
+    {
+      "name": "TaskEscrow",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          { "name": "task_id", "type": "string" },
+          { "name": "agent", "type": "pubkey" },
+          { "name": "human", "type": "pubkey" },
+          { "name": "escrow_lamports", "type": "u64" },
+          { "name": "status", "type": "u8" },
+          { "name": "checkpoint_count", "type": "u8" },
+          { "name": "checkpoints_verified", "type": "u8" },
+          { "name": "verified_bitmap", "type": "u16" },
+          { "name": "verification_hash", "type": { "array": ["u8", 32] } },
+          { "name": "created_at", "type": "i64" },
+          { "name": "completed_at", "type": "i64" },
+          { "name": "bump", "type": "u8" }
+        ]
+      }
+    }
+  ]
+}

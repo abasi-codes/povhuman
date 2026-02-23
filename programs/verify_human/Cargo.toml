@@ -1,0 +1,19 @@
+[package]
+name = "verify-human"
+version = "0.1.0"
+description = "VerifyHuman escrow program — agents deposit SOL, humans earn by completing verified tasks"
+edition = "2021"
+
+[lib]
+crate-type = ["cdylib", "lib"]
+name = "verify_human"
+
+[features]
+no-entrypoint = []
+no-idl = []
+no-log-ix-name = []
+cpi = ["no-entrypoint"]
+default = []
+
+[dependencies]
+anchor-lang = "0.30.1"

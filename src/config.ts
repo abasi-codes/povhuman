@@ -53,8 +53,8 @@ export const config = {
   },
 
   solana: {
-    storageEnabled: optional("SOLANA_STORAGE_ENABLED", "false") === "true",
-    chainEnabled: optional("SOLANA_CHAIN_ENABLED", "false") === "true",
+    /** Use real on-chain Anchor program (requires deployed program + funded authority) */
+    liveMode: optional("SOLANA_LIVE_MODE", "false") === "true",
     authorityKeypair: process.env.SOLANA_PRIVATE_KEY || "",
     rpcUrl: optional("SOLANA_RPC_URL", "https://api.devnet.solana.com"),
     programId: process.env.SOLANA_PROGRAM_ID || "",

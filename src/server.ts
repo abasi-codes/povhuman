@@ -42,13 +42,14 @@ const evidenceCapture = new EvidenceCaptureService(
 
 const webhookBaseUrl = `http://${config.server.host === "0.0.0.0" ? "localhost" : config.server.host}:${config.server.port}`;
 
-// Solana chain client (mock escrow in Phase 2A, real Anchor in 2B)
+// Solana chain client (mock by default, real Anchor when SOLANA_LIVE_MODE=true)
 const solanaChain = new SolanaChainClient({
   rpcUrl: config.solana.rpcUrl,
   programId: config.solana.programId,
   explorerUrl: config.solana.explorerUrl,
   cluster: config.solana.cluster,
   authorityKeypair: config.solana.authorityKeypair,
+  liveMode: config.solana.liveMode,
 });
 
 const taskManager = new TaskManager(
