@@ -1,9 +1,14 @@
+[toolchain]
+
 [features]
-seeds = true
+resolution = true
 skip-lint = false
 
+[programs.localnet]
+verify_human = "DbGavFV6xRvS5FKav7Xwrock9TEkemrNZkvnm2XDookF"
+
 [programs.devnet]
-verify_human = "VHescrow11111111111111111111111111111111111"
+verify_human = "DbGavFV6xRvS5FKav7Xwrock9TEkemrNZkvnm2XDookF"
 
 [registry]
 url = "https://api.apr.dev"

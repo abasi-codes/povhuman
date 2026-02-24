@@ -5,6 +5,7 @@ pub mod verify_checkpoint;
 pub mod complete_and_release;
 pub mod cancel_and_refund;
 
+#[allow(ambiguous_glob_reexports)]
 pub use initialize::*;
 pub use create_task::*;
 pub use claim_task::*;

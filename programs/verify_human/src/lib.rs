@@ -8,7 +8,7 @@ use instructions::*;
 
 // This will be replaced with the actual deployed program ID.
 // For devnet testing, generate with: `solana-keygen grind --starts-with VH:1`
-declare_id!("VHescrow11111111111111111111111111111111111");
+declare_id!("DbGavFV6xRvS5FKav7Xwrock9TEkemrNZkvnm2XDookF");
 
 #[program]
 pub mod verify_human {
