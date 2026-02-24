@@ -43,6 +43,46 @@ const mockResults: Record<string, { explanation: string }> = {
   },
 };
 
+function trioHeaders(apiKey: string): Record<string, string> {
+  const headers: Record<string, string> = { "Content-Type": "application/json" };
+  if (apiKey.startsWith("AIza")) {
+    headers["X-Google-Api-Key"] = apiKey;
+  } else {
+    headers["Authorization"] = `Bearer ${apiKey}`;
+  }
+  return headers;
+}
+
+async function validateStreamUrl(
+  videoUrl: string,
+  apiKey: string,
+): Promise<{ valid: boolean; is_live?: boolean; error?: string }> {
+  try {
+    const res = await fetch(
+      `${TRIO_BASE}/validate-url?url=${encodeURIComponent(videoUrl)}`,
+      { headers: trioHeaders(apiKey) },
+    );
+    if (!res.ok) return { valid: false, error: `validate-url returned ${res.status}` };
+    return await res.json();
+  } catch {
+    return { valid: false, error: "validate-url request failed" };
+  }
+}
+
+async function callCheckOnce(
+  videoUrl: string,
+  condition: string,
+  apiKey: string,
+): Promise<{ ok: boolean; body: any; status: number }> {
+  const res = await fetch(`${TRIO_BASE}/check-once`, {
+    method: "POST",
+    headers: trioHeaders(apiKey),
+    body: JSON.stringify({ stream_url: videoUrl, condition }),
+  });
+  const body = await res.json();
+  return { ok: res.ok, body, status: res.status };
+}
+
 export default async function handler(req: any, res: any) {
   if (req.method !== "POST") {
     res.setHeader("Allow", "POST");
@@ -84,45 +124,44 @@ export default async function handler(req: any, res: any) {
 
   // --- Real Trio verification ---
   try {
-    const trioRes = await fetch(`${TRIO_BASE}/check-once`, {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-        Authorization: `Bearer ${apiKey}`,
-      },
-      body: JSON.stringify({
-        stream_url: video_url,
-        condition: task.condition,
-      }),
-    });
+    // Step 1: Validate the URL with Trio before check-once
+    const validation = await validateStreamUrl(video_url, apiKey);
 
-    const body = await trioRes.json();
+    // Step 2: Call check-once
+    let result = await callCheckOnce(video_url, task.condition, apiKey);
 
-    // Trio returns 4xx with error object for non-livestream URLs
-    if (!trioRes.ok) {
-      const code = body?.error?.code;
-      if (code === "NOT_LIVESTREAM") {
-        return res.json({
-          verified: false,
-          explanation:
-            "The URL provided is not an active YouTube livestream. Please submit a URL with a LIVE badge.",
-        });
+    // Step 3: If NOT_LIVESTREAM but validate-url said it's valid/live, retry once
+    if (!result.ok && result.body?.error?.code === "NOT_LIVESTREAM") {
+      if (validation.valid && validation.is_live !== false) {
+        // Wait briefly and retry — Trio may need a moment to pick up the stream
+        await new Promise((r) => setTimeout(r, 2000));
+        result = await callCheckOnce(video_url, task.condition, apiKey);
       }
-      const msg = body?.error?.message ?? `Trio returned ${trioRes.status}`;
+    }
+
+    if (!result.ok) {
+      const code = result.body?.error?.code;
+      if (code === "NOT_LIVESTREAM") {
+        const hint = validation.is_live === false
+          ? "Trio could not detect an active livestream at this URL. The stream may have ended or is not publicly accessible."
+          : "Trio could not verify this as an active livestream. Please ensure the stream is live and publicly accessible, then try again.";
+        return res.json({ verified: false, explanation: hint });
+      }
+      const msg = result.body?.error?.message ?? `Trio returned ${result.status}`;
       return res.json({ verified: false, explanation: `Stream error: ${msg}` });
     }
 
-    if (body.triggered) {
+    if (result.body.triggered) {
       return res.json({
         verified: true,
-        explanation: body.explanation,
+        explanation: result.body.explanation,
         payout_cents: task.payout_cents,
       });
     }
 
     return res.json({
       verified: false,
-      explanation: body.explanation,
+      explanation: result.body.explanation,
     });
   } catch (err: any) {
     return res.json({

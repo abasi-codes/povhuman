@@ -197,12 +197,46 @@ export function createBrowseRoutes(
     }
 
     try {
-      const result = await trio.checkOnce({
-        stream_url: parsed.data.video_url,
-        condition,
-      });
+      // Validate URL with Trio first
+      let validationIsLive: boolean | undefined = undefined;
+      try {
+        const v = await trio.validateUrl(parsed.data.video_url);
+        validationIsLive = v.is_live ?? undefined;
+      } catch {
+        // validate-url failed, proceed anyway
+      }
 
-      const verified = result.triggered === true;
+      let result: Awaited<ReturnType<typeof trio.checkOnce>>;
+      try {
+        result = await trio.checkOnce({
+          stream_url: parsed.data.video_url,
+          condition,
+        });
+      } catch (firstErr) {
+        // If NOT_LIVESTREAM but validate-url said it's valid/live, retry once
+        if (validationIsLive !== false) {
+          // Retry after brief delay — Trio may need time to pick up stream
+          await new Promise((r) => setTimeout(r, 2000));
+          try {
+            result = await trio.checkOnce({
+              stream_url: parsed.data.video_url,
+              condition,
+            });
+          } catch {
+            return c.json({
+              verified: false,
+              explanation: "Trio could not verify this as an active livestream. Please ensure the stream is live and publicly accessible, then try again.",
+            });
+          }
+        } else {
+          return c.json({
+            verified: false,
+            explanation: "Trio could not detect an active livestream at this URL. The stream may have ended or is not publicly accessible.",
+          });
+        }
+      }
+
+      const verified = result!.triggered === true;
 
       if (verified) {
         // Mark checkpoint as verified
@@ -212,7 +246,7 @@ export function createBrowseRoutes(
            evidence_explanation = ? WHERE checkpoint_id = ?`,
         );
         verifyStmt.run(
-          result.explanation,
+          result!.explanation,
           cp.checkpoint_id,
         );
 
@@ -233,14 +267,14 @@ export function createBrowseRoutes(
             eventId,
             taskId,
             cp.checkpoint_id,
-            result.explanation,
-            result.frame_b64 ?? null,
+            result!.explanation,
+            result!.frame_b64 ?? null,
           );
       }
 
       return c.json({
         verified,
-        explanation: result.explanation,
+        explanation: result!.explanation,
         payout_cents: verified ? task.payout_cents : 0,
       });
     } catch (err) {
