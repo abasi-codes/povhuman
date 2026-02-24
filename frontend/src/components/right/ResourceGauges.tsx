@@ -97,6 +97,38 @@ export function ResourceGauges() {
         </div>
       )}
 
+      {task?.trust_score != null && (
+        <div className="trust-display" style={{ marginBottom: 12 }}>
+          <div className="hash-label">Trust Score</div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 4 }}>
+            <span style={{
+              fontSize: 20,
+              fontWeight: 700,
+              fontFamily: "var(--fm)",
+              color: task.trust_grade === "A" ? "var(--green)" :
+                     task.trust_grade === "B" ? "var(--amber)" :
+                     task.trust_grade === "C" ? "var(--amber)" : "var(--red, #ef4444)",
+            }}>
+              {Math.round(task.trust_score * 100)}%
+            </span>
+            <span style={{
+              padding: "2px 8px",
+              borderRadius: 4,
+              fontSize: 12,
+              fontWeight: 600,
+              background: task.trust_grade === "A" ? "rgba(16,185,129,0.15)" :
+                          task.trust_grade === "B" ? "rgba(245,158,11,0.15)" :
+                          task.trust_grade === "C" ? "rgba(245,158,11,0.15)" : "rgba(239,68,68,0.15)",
+              color: task.trust_grade === "A" ? "var(--green)" :
+                     task.trust_grade === "B" ? "var(--amber)" :
+                     task.trust_grade === "C" ? "var(--amber)" : "var(--red, #ef4444)",
+            }}>
+              Grade {task.trust_grade}
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="hash-display">
         <div className="hash-label">Verification Hash</div>
         {task?.verification_hash ? (

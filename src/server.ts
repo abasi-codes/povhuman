@@ -28,6 +28,8 @@ import { createMetricsRoutes, incrementCounter } from "./routes/metrics.js";
 import { DEFAULT_REDACTION_POLICY } from "./tasks/types.js";
 import type { AnyWebhookPayload, MonitorTriggeredPayload, JobStatusPayload } from "./trio/types.js";
 import { SolanaChainClient } from "./chain/client.js";
+import { DemoOrchestrator } from "./demo-agents/orchestrator.js";
+import { createDemoWebhookRoute } from "./routes/demo-webhook.js";
 
 // --- Initialize dependencies ---
 
@@ -64,6 +66,17 @@ const taskManager = new TaskManager(
 
 // --- Seed demo tasks ---
 await seedDemoTasks(db, taskManager);
+
+// --- Demo orchestrator ---
+let orchestrator: DemoOrchestrator | null = null;
+if (config.demo.enabled) {
+  orchestrator = new DemoOrchestrator(
+    taskManager,
+    db,
+    `${webhookBaseUrl}/webhooks/demo`,
+    config.demo.repostBaseDelayMs,
+  );
+}
 
 // --- Load HTML pages ---
 const rootDir = join(import.meta.dirname ?? ".", "..");
@@ -181,6 +194,11 @@ app.route("/api/v1/browse", createBrowseRoutes(taskManager, trio));
 // Agent key management
 app.route("/api/v1/agents", createAgentKeyRoutes(db));
 
+// Demo webhook (receives events from demo agent tasks)
+if (orchestrator) {
+  app.route("/webhooks", createDemoWebhookRoute(orchestrator));
+}
+
 // --- Serve frontend static files (production build) ---
 const frontendDist = join(import.meta.dirname ?? ".", "../frontend/dist");
 if (existsSync(frontendDist)) {
@@ -195,6 +213,11 @@ heartbeat.start();
 
 const retentionInterval = startRetentionWorker(db);
 
+// Start demo orchestrator after everything is initialized
+if (orchestrator) {
+  orchestrator.start();
+}
+
 serve(
   { fetch: app.fetch, port: config.server.port, hostname: config.server.host },
   (info) => {
@@ -208,6 +231,7 @@ serve(
 // Graceful shutdown
 process.on("SIGTERM", () => {
   logger.info("Shutting down...");
+  orchestrator?.stop();
   heartbeat.stop();
   clearInterval(retentionInterval);
   db.close();
@@ -216,6 +240,7 @@ process.on("SIGTERM", () => {
 
 process.on("SIGINT", () => {
   logger.info("Shutting down...");
+  orchestrator?.stop();
   heartbeat.stop();
   clearInterval(retentionInterval);
   db.close();

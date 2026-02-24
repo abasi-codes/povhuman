@@ -1,21 +1,38 @@
 import { useState } from "react";
 import { useTaskContext } from "../../context/TaskContext";
 
+
 const CHECKPOINT_TYPES = [
   { value: "location", label: "Location", badge: "LOC" },
   { value: "object", label: "Object", badge: "OBJ" },
   { value: "document", label: "Document", badge: "DOC" },
+  { value: "gps", label: "GPS Geofence", badge: "GPS" },
 ];
 
 export function CheckpointBuilder() {
   const { checkpointInputs, addCheckpoint, removeCheckpoint, taskId } = useTaskContext();
   const [newType, setNewType] = useState("location");
   const [newTarget, setNewTarget] = useState("");
+  const [gpsLat, setGpsLat] = useState("");
+  const [gpsLng, setGpsLng] = useState("");
+  const [gpsRadius, setGpsRadius] = useState("100");
 
   if (taskId) return null;
 
+  const isGps = newType === "gps";
+
   const handleAdd = () => {
-    if (newTarget.trim()) {
+    if (isGps) {
+      const lat = parseFloat(gpsLat);
+      const lng = parseFloat(gpsLng);
+      const radius = parseInt(gpsRadius, 10);
+      if (!isNaN(lat) && !isNaN(lng) && !isNaN(radius) && radius > 0) {
+        addCheckpoint("gps", JSON.stringify({ lat, lng, radius_m: radius }));
+        setGpsLat("");
+        setGpsLng("");
+        setGpsRadius("100");
+      }
+    } else if (newTarget.trim()) {
       addCheckpoint(newType, newTarget);
       setNewTarget("");
     }
@@ -70,20 +87,54 @@ export function CheckpointBuilder() {
             ))}
           </select>
         </div>
-        <div className="field" style={{ flex: 2 }}>
-          <input
-            className="field-input"
-            type="text"
-            value={newTarget}
-            onChange={(e) => setNewTarget(e.target.value)}
-            onKeyDown={handleKeyDown}
-            placeholder="Target to verify..."
-          />
-        </div>
+        {isGps ? (
+          <>
+            <div className="field">
+              <input
+                className="field-input"
+                type="number"
+                step="any"
+                value={gpsLat}
+                onChange={(e) => setGpsLat(e.target.value)}
+                placeholder="Lat"
+              />
+            </div>
+            <div className="field">
+              <input
+                className="field-input"
+                type="number"
+                step="any"
+                value={gpsLng}
+                onChange={(e) => setGpsLng(e.target.value)}
+                placeholder="Lng"
+              />
+            </div>
+            <div className="field" style={{ maxWidth: 70 }}>
+              <input
+                className="field-input"
+                type="number"
+                value={gpsRadius}
+                onChange={(e) => setGpsRadius(e.target.value)}
+                placeholder="Radius (m)"
+              />
+            </div>
+          </>
+        ) : (
+          <div className="field" style={{ flex: 2 }}>
+            <input
+              className="field-input"
+              type="text"
+              value={newTarget}
+              onChange={(e) => setNewTarget(e.target.value)}
+              onKeyDown={handleKeyDown}
+              placeholder="Target to verify..."
+            />
+          </div>
+        )}
         <button
           className="btn btn-amber btn-sm"
           onClick={handleAdd}
-          disabled={!newTarget.trim()}
+          disabled={isGps ? (!gpsLat || !gpsLng) : !newTarget.trim()}
         >
           + Add
         </button>

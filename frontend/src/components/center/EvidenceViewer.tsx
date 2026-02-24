@@ -13,6 +13,7 @@ const sceneEmoji: Record<string, string> = {
   location: "\uD83C\uDFE0",
   object: "\uD83D\uDCE6",
   document: "\uD83D\uDCC4",
+  gps: "\uD83D\uDCCD",
 };
 
 export function EvidenceViewer() {
@@ -80,7 +81,7 @@ export function EvidenceViewer() {
         {latest.evidence_zg_root && (
           <><br /><strong>Storage:</strong>{" "}
             <span style={{ color: "var(--amber)", fontFamily: "var(--fm)" }}>
-              0G &mdash; {latest.evidence_zg_root.slice(0, 12)}...{latest.evidence_zg_root.slice(-8)}
+              Solana &mdash; {latest.evidence_zg_root.slice(0, 12)}...{latest.evidence_zg_root.slice(-8)}
             </span>
           </>
         )}

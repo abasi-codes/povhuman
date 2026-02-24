@@ -106,11 +106,38 @@ export function initDatabase(dbPath: string): Database.Database {
       revoked_at TEXT
     );
 
+    CREATE TABLE IF NOT EXISTS gps_readings (
+      reading_id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+      lat REAL NOT NULL,
+      lng REAL NOT NULL,
+      accuracy_m REAL NOT NULL,
+      ip_address TEXT,
+      ip_geo_lat REAL,
+      ip_geo_lng REAL,
+      ip_distance_km REAL,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
+    CREATE TABLE IF NOT EXISTS device_attestations (
+      attestation_id TEXT PRIMARY KEY,
+      task_id TEXT NOT NULL REFERENCES tasks(task_id) ON DELETE CASCADE,
+      human_id TEXT,
+      platform TEXT NOT NULL,
+      device_type TEXT,
+      integrity_level TEXT,
+      valid INTEGER NOT NULL DEFAULT 0,
+      raw_verdict TEXT,
+      created_at TEXT NOT NULL DEFAULT (datetime('now'))
+    );
+
     CREATE INDEX IF NOT EXISTS idx_checkpoints_task ON checkpoints(task_id);
     CREATE INDEX IF NOT EXISTS idx_jobs_task ON trio_jobs(task_id);
     CREATE INDEX IF NOT EXISTS idx_events_task ON verification_events(task_id);
     CREATE INDEX IF NOT EXISTS idx_events_expires ON verification_events(expires_at);
     CREATE INDEX IF NOT EXISTS idx_agent_keys_agent ON agent_keys(agent_id);
+    CREATE INDEX IF NOT EXISTS idx_gps_readings_task ON gps_readings(task_id, created_at);
+    CREATE INDEX IF NOT EXISTS idx_device_attestations_task ON device_attestations(task_id);
   `);
 
   // Migrations for existing databases
@@ -125,6 +152,8 @@ export function initDatabase(dbPath: string): Database.Database {
     "ALTER TABLE tasks ADD COLUMN escrow_pda TEXT",
     "ALTER TABLE tasks ADD COLUMN deposit_signature TEXT",
     "ALTER TABLE tasks ADD COLUMN release_signature TEXT",
+    "ALTER TABLE tasks ADD COLUMN trust_score REAL",
+    "ALTER TABLE tasks ADD COLUMN trust_grade TEXT",
   ];
   for (const sql of migrations) {
     try { db.exec(sql); } catch { /* column already exists */ }
@@ -162,6 +191,8 @@ export interface TaskRow {
   escrow_pda: string | null;
   deposit_signature: string | null;
   release_signature: string | null;
+  trust_score: number | null;
+  trust_grade: string | null;
 }
 
 export interface AgentRow {
@@ -231,4 +262,29 @@ export interface AgentKeyRow {
   label: string | null;
   created_at: string;
   revoked_at: string | null;
+}
+
+export interface GpsReadingRow {
+  reading_id: string;
+  task_id: string;
+  lat: number;
+  lng: number;
+  accuracy_m: number;
+  ip_address: string | null;
+  ip_geo_lat: number | null;
+  ip_geo_lng: number | null;
+  ip_distance_km: number | null;
+  created_at: string;
+}
+
+export interface DeviceAttestationRow {
+  attestation_id: string;
+  task_id: string;
+  human_id: string | null;
+  platform: string;
+  device_type: string | null;
+  integrity_level: string | null;
+  valid: number;
+  raw_verdict: string | null;
+  created_at: string;
 }

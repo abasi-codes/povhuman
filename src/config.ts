@@ -52,6 +52,17 @@ export const config = {
     frameMinutes: parseInt(optional("FRAME_RETENTION_MINUTES", "60"), 10),
   },
 
+  demo: {
+    enabled: optional("DEMO_MODE", "true") === "true",
+    repostBaseDelayMs: parseInt(optional("DEMO_REPOST_BASE_DELAY_MS", "60000"), 10),
+  },
+
+  attestation: {
+    liveMode: optional("ATTESTATION_LIVE_MODE", "false") === "true",
+    playIntegrityPackageName: process.env.PLAY_INTEGRITY_PACKAGE_NAME || "",
+    playIntegrityDecryptionKey: process.env.PLAY_INTEGRITY_DECRYPTION_KEY || "",
+  },
+
   solana: {
     /** Use real on-chain Anchor program (requires deployed program + funded authority) */
     liveMode: optional("SOLANA_LIVE_MODE", "false") === "true",

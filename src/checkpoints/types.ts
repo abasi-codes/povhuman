@@ -2,10 +2,17 @@ export type CheckpointType =
   | "location"
   | "object"
   | "document"
+  | "gps"
   | "person"
   | "action"
   | "duration"
   | "text";
+
+export interface GpsCheckpointConfig {
+  lat: number;
+  lng: number;
+  radius_m: number;
+}
 
 export interface CheckpointTemplate {
   type: CheckpointType;
@@ -30,6 +37,16 @@ export const CHECKPOINT_TEMPLATES: Record<CheckpointType, CheckpointTemplate> = 
       "like signs, landmarks, street names, building facades, or distinctive features " +
       "that confirm the location. Respond YES if location is confirmed, NO if not.",
     default_confidence: 0.8,
+    available: true,
+  },
+  gps: {
+    type: "gps",
+    label: "GPS Geofence",
+    description: "Verify the device is within a GPS geofence radius",
+    prompt_template:
+      "GPS geofence checkpoint: target coordinates in {target}. " +
+      "This checkpoint is verified via device GPS, not visual analysis.",
+    default_confidence: 0.9,
     available: true,
   },
   object: {

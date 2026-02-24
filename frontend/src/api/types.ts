@@ -63,6 +63,8 @@ export interface TaskDetail {
   escrow_pda: string | null;
   deposit_signature: string | null;
   release_signature: string | null;
+  trust_score: number | null;
+  trust_grade: string | null;
 }
 
 // Create task
@@ -130,4 +132,40 @@ export interface Agent {
   description: string;
   avatar: string;
   wallet_address: string | null;
+}
+
+// GPS
+export interface GpsReading {
+  lat: number;
+  lng: number;
+  accuracy_m: number;
+  timestamp?: string;
+}
+
+export interface GpsCheckpointConfig {
+  lat: number;
+  lng: number;
+  radius_m: number;
+}
+
+// Attestation
+export interface AttestationResult {
+  valid: boolean;
+  device_type: string;
+  integrity_level: string;
+  trust_score?: TrustScore;
+}
+
+export interface TrustScore {
+  score: number;
+  grade: "A" | "B" | "C" | "F";
+  breakdown: {
+    vlm: number;
+    vlm_weighted: number;
+    gps: number;
+    gps_weighted: number;
+    attestation: number;
+    attestation_weighted: number;
+  };
+  flags: string[];
 }

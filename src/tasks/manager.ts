@@ -13,6 +13,11 @@ import type { TaskRow, CheckpointRow, TrioJobRow } from "../db/schema.js";
 import type { InputMode } from "../trio/types.js";
 import type { SolanaChainClient } from "../chain/client.js";
 import type { ChainReceipt } from "../chain/types.js";
+import type { GpsResult } from "../checkpoints/gps.js";
+import { computeCompositeScore } from "../checkpoints/composite-scorer.js";
+import type { AttestationResult } from "../attestation/verifier.js";
+import { computeTrustScore } from "../attestation/trust-score.js";
+import type { GpsReadingRow, DeviceAttestationRow } from "../db/schema.js";
 
 export class TaskManager {
   private db: Database.Database;
@@ -146,6 +151,29 @@ export class TaskManager {
       // Agent queries
       getAgent: this.db.prepare(`
         SELECT * FROM agents WHERE agent_id = ?
+      `),
+      // GPS readings
+      insertGpsReading: this.db.prepare(`
+        INSERT INTO gps_readings (reading_id, task_id, lat, lng, accuracy_m, ip_address, ip_geo_lat, ip_geo_lng, ip_distance_km)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+      `),
+      getLatestGpsReading: this.db.prepare(`
+        SELECT * FROM gps_readings WHERE task_id = ? ORDER BY created_at DESC LIMIT 1
+      `),
+      // Device attestations
+      insertAttestation: this.db.prepare(`
+        INSERT INTO device_attestations (attestation_id, task_id, human_id, platform, device_type, integrity_level, valid, raw_verdict)
+        VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+      `),
+      getLatestAttestation: this.db.prepare(`
+        SELECT * FROM device_attestations WHERE task_id = ? ORDER BY created_at DESC LIMIT 1
+      `),
+      // Trust score
+      updateTaskTrustScore: this.db.prepare(`
+        UPDATE tasks SET trust_score = ?, trust_grade = ?, updated_at = datetime('now') WHERE task_id = ?
+      `),
+      updateCheckpointMetadata: this.db.prepare(`
+        UPDATE checkpoints SET metadata = ? WHERE checkpoint_id = ?
       `),
     };
   }
@@ -422,6 +450,9 @@ export class TaskManager {
 
     this.stmts.updateTaskCompleted.run(verificationHash, taskId);
 
+    // Compute trust score on completion
+    const trustResult = this.computeAndStoreTrustScore(taskId);
+
     // Release escrow on-chain
     let releaseReceipt: ChainReceipt | null = null;
     if (this.solanaChain && task.escrow_status === "deposited" && task.escrow_pda) {
@@ -454,6 +485,8 @@ export class TaskManager {
     const completionMetadata: Record<string, unknown> = {
       checkpoints_verified: checkpoints.filter((cp) => cp.verified).length,
       checkpoints_total: checkpoints.length,
+      trust_score: trustResult.score,
+      trust_grade: trustResult.grade,
     };
 
     if (releaseReceipt) {
@@ -613,5 +646,137 @@ export class TaskManager {
   getEventFrame(eventId: string): string | null {
     const row = this.stmts.getEventFrame.get(eventId) as { evidence_frame_b64: string | null; evidence_zg_root: string | null } | undefined;
     return row?.evidence_frame_b64 ?? null;
+  }
+
+  // --- GPS Methods ---
+
+  storeGpsReading(
+    readingId: string,
+    taskId: string,
+    lat: number,
+    lng: number,
+    accuracyM: number,
+    ipAddress: string | null,
+    ipGeoLat: number | null,
+    ipGeoLng: number | null,
+    ipDistanceKm: number | null,
+  ): void {
+    this.stmts.insertGpsReading.run(readingId, taskId, lat, lng, accuracyM, ipAddress, ipGeoLat, ipGeoLng, ipDistanceKm);
+  }
+
+  getLatestGpsReading(taskId: string): GpsReadingRow | undefined {
+    return this.stmts.getLatestGpsReading.get(taskId) as GpsReadingRow | undefined;
+  }
+
+  verifyGpsCheckpoint(checkpointId: string, gpsResult: GpsResult, readingId: string): void {
+    this.stmts.updateCheckpointVerified.run(
+      null,
+      `GPS verified: ${gpsResult.distance_m}m from target (within radius: ${gpsResult.within_radius})`,
+      gpsResult.confidence,
+      checkpointId,
+    );
+    this.stmts.updateCheckpointMetadata.run(
+      JSON.stringify({ gps: gpsResult, reading_id: readingId }),
+      checkpointId,
+    );
+
+    // Record verification event
+    const eventId = nanoid(12);
+    const checkpoint = this.stmts.getCheckpoints.all("").length; // get the checkpoint
+    this.stmts.insertEvent.run(
+      eventId, "", null, checkpointId,
+      "checkpoint_verified", gpsResult.confidence,
+      `GPS checkpoint verified: ${gpsResult.distance_m}m from target`,
+      null, JSON.stringify({ gps: gpsResult, reading_id: readingId }),
+      null,
+    );
+
+    // Find task for this checkpoint and deliver webhook + check completion
+    const cpRow = this.db.prepare("SELECT task_id FROM checkpoints WHERE checkpoint_id = ?").get(checkpointId) as { task_id: string } | undefined;
+    if (cpRow) {
+      const task = this.stmts.getTask.get(cpRow.task_id) as TaskRow | undefined;
+      if (task) {
+        // Update the event with correct task_id
+        this.db.prepare("UPDATE verification_events SET task_id = ? WHERE event_id = ?").run(cpRow.task_id, eventId);
+
+        // Deliver webhook
+        this.agentDelivery.deliverEvent(task.webhook_url, {
+          event_id: eventId,
+          task_id: cpRow.task_id,
+          event_type: "checkpoint_verified",
+          timestamp: new Date().toISOString(),
+          checkpoint_id: checkpointId,
+          checkpoint_type: "gps",
+          confidence: gpsResult.confidence,
+          metadata: { gps: gpsResult },
+        }).catch((err) => {
+          logger.error({ err, taskId: cpRow.task_id }, "Failed to deliver GPS checkpoint event");
+        });
+
+        // Check completion
+        const { total, verified } = this.stmts.countRequiredCheckpoints.get(cpRow.task_id) as { total: number; verified: number };
+        if (verified >= total) {
+          this.completeTask(cpRow.task_id).catch((err) => {
+            logger.error({ err, taskId: cpRow.task_id }, "Failed to complete task after GPS checkpoint");
+          });
+        }
+      }
+    }
+  }
+
+  // --- Attestation Methods ---
+
+  storeAttestation(
+    taskId: string,
+    humanId: string | null,
+    platform: string,
+    result: AttestationResult,
+  ): void {
+    this.stmts.insertAttestation.run(
+      nanoid(12),
+      taskId,
+      humanId,
+      platform,
+      result.device_type,
+      result.integrity_level,
+      result.valid ? 1 : 0,
+      result.raw_verdict ? JSON.stringify(result.raw_verdict) : null,
+    );
+  }
+
+  getLatestAttestation(taskId: string): DeviceAttestationRow | undefined {
+    return this.stmts.getLatestAttestation.get(taskId) as DeviceAttestationRow | undefined;
+  }
+
+  computeAndStoreTrustScore(taskId: string): { score: number; grade: string; breakdown: Record<string, unknown> } {
+    const checkpoints = this.stmts.getCheckpoints.all(taskId) as CheckpointRow[];
+    const verifiedCps = checkpoints.filter((cp) => cp.verified === 1);
+
+    // Average VLM confidence from verified checkpoints (non-GPS)
+    const vlmCheckpoints = verifiedCps.filter((cp) => cp.type !== "gps");
+    const vlmConfidence = vlmCheckpoints.length > 0
+      ? vlmCheckpoints.reduce((sum, cp) => sum + (cp.confidence || 0), 0) / vlmCheckpoints.length
+      : 0;
+
+    // Latest GPS reading
+    const gpsReading = this.getLatestGpsReading(taskId);
+    let gpsConfidence: number | undefined;
+    if (gpsReading) {
+      // Find GPS checkpoints and get best confidence
+      const gpsCheckpoints = verifiedCps.filter((cp) => cp.type === "gps");
+      if (gpsCheckpoints.length > 0) {
+        gpsConfidence = Math.max(...gpsCheckpoints.map((cp) => cp.confidence || 0));
+      }
+    }
+
+    // Latest attestation
+    const attestation = this.getLatestAttestation(taskId);
+    const attestationValid = attestation?.valid === 1;
+
+    const result = computeTrustScore(vlmConfidence, gpsConfidence, attestationValid ? true : undefined);
+
+    this.stmts.updateTaskTrustScore.run(result.score, result.grade, taskId);
+
+    return { score: result.score, grade: result.grade, breakdown: result.breakdown as unknown as Record<string, unknown> };
   }
 }
