@@ -45,6 +45,18 @@ export function TaskControl() {
         )}
       </div>
 
+      {task?.agent_name && (
+        <div className="agent-identity">
+          <div className="agent-avatar">{task.agent_avatar || "\uD83E\uDD16"}</div>
+          <div className="agent-identity-info">
+            <div className="agent-identity-name">{task.agent_name}</div>
+            {task.agent_description && (
+              <div className="agent-identity-desc">{task.agent_description}</div>
+            )}
+          </div>
+        </div>
+      )}
+
       <div className={`task-state ${statusClass}`}>
         <div>
           <div className="task-state-label">State</div>

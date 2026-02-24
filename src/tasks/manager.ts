@@ -17,7 +17,8 @@ import type { GpsResult } from "../checkpoints/gps.js";
 import { computeCompositeScore } from "../checkpoints/composite-scorer.js";
 import type { AttestationResult } from "../attestation/verifier.js";
 import { computeTrustScore } from "../attestation/trust-score.js";
-import type { GpsReadingRow, DeviceAttestationRow } from "../db/schema.js";
+import type { GpsReadingRow, DeviceAttestationRow, AgentRow } from "../db/schema.js";
+import type { TrustScore } from "../attestation/trust-score.js";
 
 export class TaskManager {
   private db: Database.Database;
@@ -746,6 +747,36 @@ export class TaskManager {
 
   getLatestAttestation(taskId: string): DeviceAttestationRow | undefined {
     return this.stmts.getLatestAttestation.get(taskId) as DeviceAttestationRow | undefined;
+  }
+
+  getAgent(agentId: string): AgentRow | undefined {
+    return this.stmts.getAgent.get(agentId) as AgentRow | undefined;
+  }
+
+  getTrustBreakdown(taskId: string): TrustScore | null {
+    const checkpoints = this.stmts.getCheckpoints.all(taskId) as CheckpointRow[];
+    const verifiedCps = checkpoints.filter((cp) => cp.verified === 1);
+
+    if (verifiedCps.length === 0) return null;
+
+    const vlmCheckpoints = verifiedCps.filter((cp) => cp.type !== "gps");
+    const vlmConfidence = vlmCheckpoints.length > 0
+      ? vlmCheckpoints.reduce((sum, cp) => sum + (cp.confidence || 0), 0) / vlmCheckpoints.length
+      : 0;
+
+    const gpsReading = this.getLatestGpsReading(taskId);
+    let gpsConfidence: number | undefined;
+    if (gpsReading) {
+      const gpsCheckpoints = verifiedCps.filter((cp) => cp.type === "gps");
+      if (gpsCheckpoints.length > 0) {
+        gpsConfidence = Math.max(...gpsCheckpoints.map((cp) => cp.confidence || 0));
+      }
+    }
+
+    const attestation = this.getLatestAttestation(taskId);
+    const attestationValid = attestation?.valid === 1;
+
+    return computeTrustScore(vlmConfidence, gpsConfidence, attestationValid ? true : undefined);
   }
 
   computeAndStoreTrustScore(taskId: string): { score: number; grade: string; breakdown: Record<string, unknown> } {

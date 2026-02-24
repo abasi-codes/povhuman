@@ -77,6 +77,20 @@ export function EvidenceViewer() {
         {latest.verified_at && (
           <><strong>Captured:</strong> {formatTime(latest.verified_at)} UTC<br /></>
         )}
+        {latest.type === "gps" && latest.verified && (
+          <><strong>Geofence:</strong>{" "}
+            <span style={{ color: "var(--green)" }}>Inside target radius</span><br />
+          </>
+        )}
+        {task?.gps_reading && (
+          <><strong>GPS:</strong>{" "}
+            {task.gps_reading.lat.toFixed(4)}, {task.gps_reading.lng.toFixed(4)} &plusmn;{Math.round(task.gps_reading.accuracy_m)}m
+            {task.gps_reading.ip_distance_km != null && (
+              <> &mdash; IP cross-check: {task.gps_reading.ip_distance_km}km</>
+            )}
+            <br />
+          </>
+        )}
         <strong>Redaction:</strong> blur_faces applied
         {latest.evidence_zg_root && (
           <><br /><strong>Storage:</strong>{" "}

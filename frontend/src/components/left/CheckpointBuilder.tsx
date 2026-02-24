@@ -2,6 +2,16 @@ import { useState } from "react";
 import { useTaskContext } from "../../context/TaskContext";
 
 
+function formatGpsTarget(target: string): string {
+  try {
+    const parsed = JSON.parse(target);
+    if (parsed.lat != null && parsed.lng != null) {
+      return `${parsed.lat.toFixed(4)}, ${parsed.lng.toFixed(4)} (${parsed.radius_m ?? 100}m)`;
+    }
+  } catch { /* not JSON */ }
+  return target;
+}
+
 const CHECKPOINT_TYPES = [
   { value: "location", label: "Location", badge: "LOC" },
   { value: "object", label: "Object", badge: "OBJ" },
@@ -57,7 +67,9 @@ export function CheckpointBuilder() {
                 <span className={`cp-type-badge ${cp.type}`}>
                   {typeInfo?.badge || cp.type.slice(0, 3).toUpperCase()}
                 </span>
-                <span className="cp-target">{cp.target}</span>
+                <span className="cp-target">
+                  {cp.type === "gps" ? formatGpsTarget(cp.target) : cp.target}
+                </span>
                 <button className="cp-remove" onClick={() => removeCheckpoint(i)}>
                   &times;
                 </button>

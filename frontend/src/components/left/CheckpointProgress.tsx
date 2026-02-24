@@ -9,6 +9,16 @@ function formatTime(iso: string): string {
   }
 }
 
+function formatGpsTarget(target: string): string {
+  try {
+    const parsed = JSON.parse(target);
+    if (parsed.lat != null && parsed.lng != null) {
+      return `${parsed.lat.toFixed(4)}, ${parsed.lng.toFixed(4)} (${parsed.radius_m ?? 100}m)`;
+    }
+  } catch { /* not JSON */ }
+  return target;
+}
+
 export function CheckpointProgress() {
   const { task } = useTaskContext();
 
@@ -55,7 +65,9 @@ export function CheckpointProgress() {
                   <span className={`pipe-type ${cp.type}`}>
                     {cp.type.charAt(0).toUpperCase() + cp.type.slice(1)}
                   </span>
-                  <span className="pipe-target">{cp.target}</span>
+                  <span className="pipe-target">
+                    {cp.type === "gps" ? formatGpsTarget(cp.target) : cp.target}
+                  </span>
                 </div>
                 <div className="pipe-details">
                   {isVerified && cp.confidence != null && (
@@ -67,9 +79,15 @@ export function CheckpointProgress() {
                     <span className="pipe-time">{formatTime(cp.verified_at)}</span>
                   )}
                   {isVerified && cp.evidence_zg_root && (
-                    <span className="zg-badge">0G</span>
+                    <span className="solana-badge">SOL</span>
                   )}
-                  {isActive && (
+                  {isVerified && cp.type === "gps" && (
+                    <span className="pipe-gps-status inside">Inside geofence</span>
+                  )}
+                  {isActive && cp.type === "gps" && (
+                    <span className="pipe-gps-status awaiting">Awaiting GPS fix...</span>
+                  )}
+                  {isActive && cp.type !== "gps" && (
                     <span style={{ color: "var(--text4)" }}>
                       Awaiting verification...
                     </span>

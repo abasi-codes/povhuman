@@ -112,6 +112,18 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
     const checkpoints = taskManager.getCheckpoints(taskId);
     const jobs = taskManager.getRunningJobs(taskId);
 
+    // Enrich with agent info
+    const agent = taskManager.getAgent(task.agent_id);
+
+    // Trust breakdown (read-only, does not write)
+    const trustBreakdown = taskManager.getTrustBreakdown(taskId);
+
+    // Latest attestation
+    const attestation = taskManager.getLatestAttestation(taskId);
+
+    // Latest GPS reading
+    const gpsReading = taskManager.getLatestGpsReading(taskId);
+
     return c.json({
       task_id: task.task_id,
       agent_id: task.agent_id,
@@ -137,6 +149,27 @@ export function createTaskRoutes(taskManager: TaskManager): Hono {
       release_signature: task.release_signature,
       trust_score: task.trust_score ?? null,
       trust_grade: task.trust_grade ?? null,
+      // Agent identity
+      agent_name: agent?.name ?? "Unknown Agent",
+      agent_avatar: agent?.avatar ?? "",
+      agent_description: agent?.description ?? "",
+      // Trust breakdown
+      trust_breakdown: trustBreakdown?.breakdown ?? null,
+      trust_flags: trustBreakdown?.flags ?? [],
+      // Device attestation
+      attestation: attestation ? {
+        valid: attestation.valid === 1,
+        device_type: attestation.device_type ?? "unknown",
+        integrity_level: attestation.integrity_level ?? "unknown",
+        platform: attestation.platform,
+      } : null,
+      // GPS reading
+      gps_reading: gpsReading ? {
+        lat: gpsReading.lat,
+        lng: gpsReading.lng,
+        accuracy_m: gpsReading.accuracy_m,
+        ip_distance_km: gpsReading.ip_distance_km,
+      } : null,
       checkpoints: checkpoints.map((cp) => ({
         checkpoint_id: cp.checkpoint_id,
         type: cp.type,

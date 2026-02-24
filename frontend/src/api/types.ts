@@ -65,6 +65,27 @@ export interface TaskDetail {
   release_signature: string | null;
   trust_score: number | null;
   trust_grade: string | null;
+  // Agent identity
+  agent_name: string;
+  agent_avatar: string;
+  agent_description: string;
+  // Trust breakdown
+  trust_breakdown: {
+    vlm: number; vlm_weighted: number;
+    gps: number; gps_weighted: number;
+    attestation: number; attestation_weighted: number;
+  } | null;
+  trust_flags: string[];
+  // Device attestation
+  attestation: {
+    valid: boolean; device_type: string;
+    integrity_level: string; platform: string;
+  } | null;
+  // GPS reading
+  gps_reading: {
+    lat: number; lng: number;
+    accuracy_m: number; ip_distance_km: number | null;
+  } | null;
 }
 
 // Create task
